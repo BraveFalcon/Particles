@@ -150,14 +150,18 @@ int main() {
     unsigned n = 0;
     double sum_energies = 0;
 
-    std::chrono::high_resolution_clock::time_point start, end, cur;
+    std::chrono::high_resolution_clock::time_point start, end, cur, prev;
+    double frac_done, frac_prev;
     start = std::chrono::high_resolution_clock::now();
     while (global_time < TIME_MODELING) {
 
         double frac_done = global_time / TIME_MODELING;
         cur = std::chrono::high_resolution_clock::now();
-        double time_left = std::chrono::duration_cast<std::chrono::duration<double>>(cur - start).count() / frac_done *
+        double time_left = std::chrono::duration_cast<std::chrono::duration<double>>(cur - prev).count() /
+                           (frac_done - frac_prev) *
                            (1 - frac_done);
+        frac_prev = frac_done;
+        prev = cur;
 
         double cur_energy = calc_energy_PAR(particles);
         sum_energies += cur_energy;
