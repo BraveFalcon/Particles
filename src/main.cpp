@@ -168,7 +168,8 @@ int main() {
         n++;
         double mean_energy = sum_energies / n;
 
-        printf("\r%.2f %% (%.0f s left). Energy deviation: %.0e", frac_done * 100, time_left,
+        printf("\r                                                            \r");
+        printf("%.2f %% (%.0f s left). Energy deviation: %.0e", frac_done * 100, time_left,
                std::abs(1 - cur_energy / mean_energy));
         std::cout.flush();
 

@@ -1,10 +1,9 @@
 import sys
 from os import path
-
 import matplotlib.pyplot as plt
 import numpy as np
 
-__import__('sys').path.append(path.abspath(path.dirname(__file__)))
+sys.path.append(path.abspath(path.dirname(__file__)))
 import energy, vels, momentum, kinetic_energy
 
 
