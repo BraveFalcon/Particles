@@ -1,10 +1,12 @@
+import sys
+from os import path
+
 import matplotlib.pyplot as plt
 import numpy as np
-from os import path
-import sys
 
 __import__('sys').path.append('..')
-from python_scripts import energy, vels, momentum
+from python_scripts import energy, vels, momentum, kinetic_energy
+
 
 def gen_images(experiment_path):
     ts = np.load(path.join(experiment_path, 'data', "ts.npy"))
@@ -21,6 +23,10 @@ def gen_images(experiment_path):
 
     fig = momentum.get_fig_momentum(ts, np.mean(data[:, :, 1, 0], 1))
     plt.savefig(path.join(experiment_path, 'images', 'momentum.svg'))
+    plt.close(fig)
+
+    fig = kinetic_energy.get_fig_kin_energy(ts, np.mean(np.linalg.norm(data[:, :, 1], axis=2) ** 2, axis=1))
+    plt.savefig(path.join(experiment_path, 'images', 'kin_energy.svg'))
     plt.close(fig)
 
 
