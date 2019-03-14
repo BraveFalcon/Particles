@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def get_fig_kin_energy(ts, kin_energies):
+def get_fig_kin_energy(ts, data):
+    kin_energies = np.mean(np.linalg.norm(data[:, :, 1], axis=2) ** 2, axis=1)
+
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     fig.suptitle('Kinetic energy stabilization and fluctuations', fontsize=20)
     fig.subplots_adjust(bottom=0.1, left=0.1, right=0.95, top=0.90)
@@ -25,8 +27,9 @@ def get_fig_kin_energy(ts, kin_energies):
 
 if __name__ == '__main__':
     experiment_path = sys.argv[1]
+
     ts = np.load(path.join(experiment_path, 'data', "ts.npy"))
     data = np.load(path.join(experiment_path, 'data', "data.npy"))
-    kin_energies = np.mean(np.linalg.norm(data[:, :, 1], axis=2) ** 2, axis=1)
-    fig = get_fig_kin_energy(ts, kin_energies)
+
+    fig = get_fig_kin_energy(ts, data)
     plt.show()

@@ -1,11 +1,14 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import scipy.stats as stats
-from os import path
 import sys
+from os import path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats as stats
 
 
-def get_fig_vels(vels):
+def get_fig_vels(data):
+    vels = data[:, :, 1, 0].ravel()
+
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     fig.subplots_adjust(bottom=0.15, left=0.1, right=0.95, top=0.92)
     fig.suptitle("Velocity distribution", fontsize=20)
@@ -23,7 +26,8 @@ def get_fig_vels(vels):
 
 if __name__ == "__main__":
     experiment_path = sys.argv[1]
+
     data = np.load(path.join(experiment_path, 'data', 'data.npy'))
-    vels = data[:, :, 1, 0].ravel()
-    fig = get_fig_vels(vels)
+    fig = get_fig_vels(data)
+
     plt.show()

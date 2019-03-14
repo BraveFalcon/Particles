@@ -1,11 +1,14 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import scipy.stats as stats
-from os import path
 import sys
+from os import path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats as stats
 
 
-def get_fig_momentum(ts, moms):
+def get_fig_momentum(ts, data):
+    moms = np.mean(data[:, :, 1, 0], 1)
+
     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
     fig.suptitle('Momentum fluctuations', fontsize=20)
     fig.subplots_adjust(bottom=0.1, left=0.1, right=0.95, top=0.90)
@@ -31,12 +34,14 @@ def get_fig_momentum(ts, moms):
     norm_distr = stats.norm.pdf(xs, 0, std_mom)
     axs[1].plot(xs, norm_distr, 'r', lw=1.5)
 
+    return fig
+
 
 if __name__ == "__main__":
     experiment_path = sys.argv[1]
+
     ts = np.load(path.join(experiment_path, 'data', "ts.npy"))
     data = np.load(path.join(experiment_path, 'data', 'data.npy'))
-    moms = np.mean(data[:, :, 1, 0], 1)
 
-    fig = get_fig_momentum(ts, moms)
+    fig = get_fig_momentum(ts, data)
     plt.show()

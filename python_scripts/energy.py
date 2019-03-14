@@ -1,8 +1,9 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import scipy.stats as stats
 import sys
 from os import path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats as stats
 
 
 def get_fig_energy(ts, energies):
@@ -35,7 +36,9 @@ def get_fig_energy(ts, energies):
 
 if __name__ == '__main__':
     experiment_path = sys.argv[1]
+
     ts = np.load(path.join(experiment_path, 'data', "ts.npy"))
     energies = np.load(path.join(experiment_path, 'data', "energies.npy"))
+
     fig = get_fig_energy(ts, energies)
     plt.show()
