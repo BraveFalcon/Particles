@@ -3,6 +3,9 @@
 #include <vector>
 #include <random>
 #include <chrono>
+#include <string>
+#include "../model_constants.h"
+#include <omp.h>
 
 struct Particle {
     Vector3d pos;
@@ -27,7 +30,7 @@ void set_rand_state(Particle *particles) {
     }
 
 
-    const int a = std::ceil(pow(NUMBER_PARTICLES, 1 / 3.0)); //количество частиц на одно измерение куба
+    const int a = std::ceil(std::cbrt(NUMBER_PARTICLES)); //количество частиц на одно измерение куба
     const double dist = CELL_SIZE / (a + 1) + 1e-6;
 
     int i = 0;
@@ -71,7 +74,6 @@ Vector3d calc_force(const Vector3d &pos1, const Vector3d &pos2) {
     double dist_sqr = r_near.sqr();
     return r_near * 24 * (2 * pow(dist_sqr, -7) - pow(dist_sqr, -4));
 }
-
 
 void calc_forces_PAR(const Particle *particles, Vector3d *forces) {
 #pragma omp parallel for
@@ -123,13 +125,25 @@ double calc_energy_PAR(const Particle *particles) {
     return energy;
 }
 
+std::string path_join(std::initializer_list<std::string> input) {
+    std::string res;
+    std::string sep = "/";
+#ifdef _WIN64
+    sep = "\\";
+#endif
+    for (const auto &s : input)
+        res += s + sep;
+    res.pop_back();
+    return res;
+}
+
 int main() {
     omp_set_num_threads(omp_get_num_procs());
 
     Particle particles[NUMBER_PARTICLES];
     set_rand_state(particles);
 
-    FILE *out_data_file = fopen("./data.xyz", "w");
+    FILE *out_data_file = fopen(path_join({"..", "data.xyz"}).c_str(), "w");
 
     double global_time = 0;
 
@@ -170,6 +184,15 @@ int main() {
     std::cout << "\rCalculation time: " << time_span.count() << "s\n";
 
     fclose(out_data_file);
-    system("python3 ../python_scripts/make_dirs_and_images.py");
 
+    std::string command = "python3 " +
+                          path_join({"..", "python_scripts", "make_dirs_and_images.py"}) + " " +
+                          ".. " +
+                          SAVE_PATH;
+
+    int success = system(command.c_str());
+    if (success != 0) {
+        std::cerr << "Python error";
+        exit(1);
+    }
 }
