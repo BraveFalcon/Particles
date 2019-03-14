@@ -1,10 +1,11 @@
 import os
 import os.path as path
 import shutil
-from datetime import datetime
 import stat
-__import__('sys').path.append('..')
-from python_scripts import load_data, gen_images
+from datetime import datetime
+
+__import__('sys').path.append(path.abspath(path.dirname(__file__)))
+import load_data, gen_images
 
 new_dir_name = datetime.strftime(datetime.now(), "%m.%d.%y_%H:%M")
 

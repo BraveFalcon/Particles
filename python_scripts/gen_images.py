@@ -4,8 +4,8 @@ from os import path
 import matplotlib.pyplot as plt
 import numpy as np
 
-__import__('sys').path.append('..')
-from python_scripts import energy, vels, momentum, kinetic_energy
+__import__('sys').path.append(path.abspath(path.dirname(__file__)))
+import energy, vels, momentum, kinetic_energy
 
 
 def gen_images(experiment_path):
