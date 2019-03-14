@@ -188,11 +188,11 @@ void calc_and_write_data(Particle *particles, const double time_modeling, const 
 int main() {
     omp_set_num_threads(omp_get_num_procs());
 
-    const double time_modeling = 1e-1;
+    const double time_modeling = 10;
 
     Particle particles[NUMBER_PARTICLES];
     set_rand_state(particles);
 
-    calc_and_write_data(particles, time_modeling, DT);
+    calc_and_write_data(particles, time_modeling, 0.01);
 
 }
