@@ -2,10 +2,12 @@ import os
 import os.path as path
 import shutil
 import stat
+import sys
 from datetime import datetime
 
-__import__('sys').path.append(path.abspath(path.dirname(__file__)))
+sys.path.append(path.abspath(path.dirname(__file__)))
 import load_data, gen_images
+
 
 new_dir_name = datetime.strftime(datetime.now(), "%m.%d.%y_%H:%M")
 
@@ -14,7 +16,7 @@ os.makedirs(path.join('experiments', new_dir_name, 'data'))
 os.makedirs(path.join('experiments', new_dir_name, 'images'))
 
 print("Coping files...")
-shutil.move(path.join('cmake-build-debug', 'info.txt'), path.join("experiments", new_dir_name, 'info.txt'))
+shutil.copy(path.join('model_constants.h'), path.join("experiments", new_dir_name, 'info.txt'))
 shutil.move(path.join('cmake-build-debug', 'data.xyz'), path.join("experiments", new_dir_name, 'data', 'data.xyz'))
 
 os.chdir(path.join('experiments', new_dir_name))

@@ -1,20 +1,8 @@
 #include <iostream>
-#include <fstream>
 #include "Vector3.hpp"
 #include <vector>
-#include <string>
-#include <cmath>
 #include <random>
-#include <omp.h>
 #include <chrono>
-
-const double DT = 1e-3;
-const double CONCENTRATION = 0.125;
-const unsigned NUMBER_PARTICLES = 1000;
-const double MAX_INIT_VEL = 5;
-
-const double CELL_SIZE = std::pow(NUMBER_PARTICLES / CONCENTRATION, 1.0 / 3); //сторона куба
-const double MASS = 1;
 
 struct Particle {
     Vector3d pos;
@@ -135,12 +123,12 @@ double calc_energy_PAR(const Particle *particles) {
     return energy;
 }
 
-void calc_and_write_data(Particle *particles, const double time_modeling, const double time_per_frame) {
-    FILE *info_file = fopen("./info.txt", "w");
-    fprintf(info_file,
-            "DT = %e\nCONCENTRATION = %f\nNUMBER_PARTICLES = %d\nMAX_INIT_VEL = %f\nMASS = %f\nCELL_SIZE = %f\nTIME_MODELING = %f\nTIME_PER_FRAME = %f\n",
-            DT, CONCENTRATION, NUMBER_PARTICLES, MAX_INIT_VEL, MASS, CELL_SIZE, time_modeling, time_per_frame);
-    fclose(info_file);
+int main() {
+    omp_set_num_threads(omp_get_num_procs());
+
+    Particle particles[NUMBER_PARTICLES];
+    set_rand_state(particles);
+
     FILE *out_data_file = fopen("./data.xyz", "w");
 
     double global_time = 0;
@@ -150,9 +138,9 @@ void calc_and_write_data(Particle *particles, const double time_modeling, const 
 
     std::chrono::high_resolution_clock::time_point start, end, cur;
     start = std::chrono::high_resolution_clock::now();
-    while (global_time < time_modeling) {
+    while (global_time < TIME_MODELING) {
 
-        double frac_done = global_time / time_modeling;
+        double frac_done = global_time / TIME_MODELING;
         cur = std::chrono::high_resolution_clock::now();
         double time_left = std::chrono::duration_cast<std::chrono::duration<double>>(cur - start).count() / frac_done *
                            (1 - frac_done);
@@ -168,7 +156,7 @@ void calc_and_write_data(Particle *particles, const double time_modeling, const 
 
         print_data(out_data_file, particles, std::to_string(global_time) + "\t" + std::to_string(cur_energy));
         double frame_time = 0;
-        while (frame_time < time_per_frame && global_time < time_modeling) {
+        while (frame_time < TIME_PER_FRAME && global_time < TIME_MODELING) {
             update_state(particles);
             global_time += DT;
             frame_time += DT;
@@ -183,16 +171,5 @@ void calc_and_write_data(Particle *particles, const double time_modeling, const 
 
     fclose(out_data_file);
     system("python3 ../python_scripts/make_dirs_and_images.py");
-}
-
-int main() {
-    omp_set_num_threads(omp_get_num_procs());
-
-    const double time_modeling = 1e-1;
-
-    Particle particles[NUMBER_PARTICLES];
-    set_rand_state(particles);
-
-    calc_and_write_data(particles, time_modeling, DT);
 
 }
