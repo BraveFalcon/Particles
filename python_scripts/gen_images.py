@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 sys.path.append(path.abspath(path.dirname(__file__)))
-import energy, vels, momentum, kinetic_energy
+import energy, vels, momentum, kinetic_energy, diffusion
 
 
 def gen_images(experiment_path):
@@ -26,6 +26,10 @@ def gen_images(experiment_path):
 
     fig = kinetic_energy.get_fig_kin_energy(ts, data)
     plt.savefig(path.join(experiment_path, 'images', 'kin_energy.svg'))
+    plt.close(fig)
+
+    fig = diffusion.get_fig_diffusion(ts, data)
+    plt.savefig(path.join(experiment_path, 'images', 'diffusion.svg'))
     plt.close(fig)
 
 
