@@ -46,14 +46,12 @@ void set_rand_state(Particle *particles) {
 
 Vector3d calc_near_r(const Vector3d &pos1, const Vector3d &pos2) {
     Vector3d res = pos2 - pos1;
-    for (int i = 0; i < 3; ++i)
-        if (res[i] > 0.5 * CELL_SIZE)
-            res[i] -= CELL_SIZE;
-        else if (res[i] < -0.5 * CELL_SIZE)
-            res[i] += CELL_SIZE;
-
+    res.x -= int(2 * res.x / CELL_SIZE) * CELL_SIZE;
+    res.y -= int(2 * res.y / CELL_SIZE) * CELL_SIZE;
+    res.z -= int(2 * res.z / CELL_SIZE) * CELL_SIZE;
     return res;
 }
+
 
 void calc_forces(const Particle *particles, Vector3d *forces) {
     for (int i = 0; i < NUMBER_PARTICLES; ++i)
@@ -88,7 +86,6 @@ void calc_forces_PAR(const Particle *particles, Vector3d *forces) {
 
     }
 }
-
 
 void update_state(Particle *particles) {
     static Vector3d forces[NUMBER_PARTICLES];
