@@ -1,8 +1,9 @@
-const double DT = 1e-3;
-const unsigned NUMBER_PARTICLES = 10;
-const double MAX_INIT_VEL = 10;
-const double CELL_SIZE = 20;
+const double DT = 5e-3;
+const unsigned NUMBER_PARTICLES = 8000;
+const double MAX_INIT_VEL = 0.01;
+const double CELL_SIZE = std::pow(2, 1.0 / 6.0) * 20;
 const double MASS = 1;
-const double TIME_MODELING = 1;
-const double TIME_PER_FRAME = 0.2;
+const double TIME_MODELING = 100;
+const double TIME_PER_FRAME = 0.5;
+const double FORCE_CUT_DIST = 3.3;
 const std::string SAVE_PATH = "/home/brave_falcon/Particles_Experiments";

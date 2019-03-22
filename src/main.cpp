@@ -30,13 +30,13 @@ void set_rand_state(Particle *particles) {
     }
 
 
-    const int a = std::ceil(std::cbrt(NUMBER_PARTICLES)); //количество частиц на одно измерение куба
-    const double dist = CELL_SIZE / (a + 1) + 1e-6;
+    const double a = std::ceil(std::cbrt(NUMBER_PARTICLES)); //количество частиц на одно измерение куба
+    const double dist = CELL_SIZE / a;
 
     int i = 0;
-    for (double x = -CELL_SIZE / 2 + dist; x < CELL_SIZE / 2; x += dist)
-        for (double y = -CELL_SIZE / 2 + dist; y < CELL_SIZE / 2; y += dist)
-            for (double z = -CELL_SIZE / 2 + dist; z < CELL_SIZE / 2; z += dist) {
+    for (double x = -CELL_SIZE / 2 + dist / 2; x < CELL_SIZE / 2; x += dist)
+        for (double y = -CELL_SIZE / 2 + dist / 2; y < CELL_SIZE / 2; y += dist)
+            for (double z = -CELL_SIZE / 2 + dist / 2; z < CELL_SIZE / 2; z += dist) {
                 if (i >= NUMBER_PARTICLES)
                     return;
                 particles[i].pos.set_values(x, y, z);
@@ -52,25 +52,14 @@ Vector3d calc_near_r(const Vector3d &pos1, const Vector3d &pos2) {
     return res;
 }
 
-
-void calc_forces(const Particle *particles, Vector3d *forces) {
-    for (int i = 0; i < NUMBER_PARTICLES; ++i)
-        forces[i].set_values(0.0);
-
-    for (int i = 0; i < NUMBER_PARTICLES; ++i)
-        for (int j = i + 1; j < NUMBER_PARTICLES; ++j) {
-            Vector3d r_near = calc_near_r(particles[i].pos, particles[j].pos);
-            double dist_sqr = r_near.sqr();
-            Vector3d force = r_near * 24 * (2 * pow(dist_sqr, -7) - pow(dist_sqr, -4));
-            forces[i] -= force;
-            forces[j] += force;
-        }
-}
-
 Vector3d calc_force(const Vector3d &pos1, const Vector3d &pos2) {
+    static const double max_dist_sqr = FORCE_CUT_DIST * FORCE_CUT_DIST;
     Vector3d r_near = calc_near_r(pos1, pos2);
     double dist_sqr = r_near.sqr();
-    return r_near * 24 * (2 * pow(dist_sqr, -7) - pow(dist_sqr, -4));
+    if (dist_sqr > max_dist_sqr)
+        return Vector3d(0.0);
+    else
+        return r_near * 24 * (2 * pow(dist_sqr, -7) - pow(dist_sqr, -4));
 }
 
 void calc_forces_PAR(const Particle *particles, Vector3d *forces) {
@@ -93,20 +82,8 @@ void update_state(Particle *particles) {
     for (int i = 0; i < NUMBER_PARTICLES; ++i) {
         particles[i].vel += forces[i] / MASS * DT;
         particles[i].pos += particles[i].vel * DT;
-        particles[i].pos = calc_near_r(Vector3d(0), particles[i].pos);
+        particles[i].pos = calc_near_r(Vector3d(0.0), particles[i].pos);
     }
-}
-
-double calc_energy(const Particle *particles) {
-    double energy = 0;
-    for (int i = 0; i < NUMBER_PARTICLES; ++i) {
-        energy += 0.5 * MASS * particles[i].vel.sqr();
-        for (int j = i + 1; j < NUMBER_PARTICLES; ++j) {
-            double dist_sqr = calc_near_r(particles[i].pos, particles[j].pos).sqr();
-            energy += 4 * (pow(dist_sqr, -6) - pow(dist_sqr, -3));
-        }
-    }
-    return energy;
 }
 
 double calc_energy_PAR(const Particle *particles) {
@@ -134,6 +111,19 @@ std::string path_join(std::initializer_list<std::string> input) {
     return res;
 }
 
+void time_test(Particle *particles) {
+    std::chrono::high_resolution_clock::time_point start, end;
+
+    start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < 5e3; ++i)
+        update_state(particles);
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "Calculation time: " << std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count()
+              << "s\n";
+    std::cout << particles[0].pos << std::endl;
+    std::cout << particles[0].vel << std::endl;
+}
+
 int main() {
     omp_set_num_threads(omp_get_num_procs());
 
@@ -149,28 +139,27 @@ int main() {
 
     std::chrono::high_resolution_clock::time_point start, end, cur, prev;
     double frac_done, frac_prev;
+
     start = std::chrono::high_resolution_clock::now();
     while (global_time < TIME_MODELING) {
-
-        double frac_done = global_time / TIME_MODELING;
+        frac_done = global_time / TIME_MODELING;
         cur = std::chrono::high_resolution_clock::now();
         double time_left = std::chrono::duration_cast<std::chrono::duration<double>>(cur - prev).count() /
                            (frac_done - frac_prev) *
                            (1 - frac_done);
         frac_prev = frac_done;
         prev = cur;
-
         double cur_energy = calc_energy_PAR(particles);
         sum_energies += cur_energy;
         n++;
         double mean_energy = sum_energies / n;
 
+        print_data(out_data_file, particles, std::to_string(global_time) + "\t" + std::to_string(cur_energy));
         printf("\r                                                            \r");
         printf("%.2f %% (%.0f s left). Energy deviation: %.0e", frac_done * 100, time_left,
                std::abs(1 - cur_energy / mean_energy));
         std::cout.flush();
 
-        print_data(out_data_file, particles, std::to_string(global_time) + "\t" + std::to_string(cur_energy));
         double frame_time = 0;
         while (frame_time < TIME_PER_FRAME && global_time < TIME_MODELING) {
             update_state(particles);
