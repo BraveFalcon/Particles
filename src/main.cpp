@@ -12,14 +12,6 @@ struct Particle {
     Vector3d vel;
 };
 
-void print_data(FILE *out, const Particle *particles, const std::string &comment) {
-    fprintf(out, "%u\n", NUMBER_PARTICLES);
-    fprintf(out, "%s\n", comment.c_str());
-    for (int i = 0; i < NUMBER_PARTICLES; ++i)
-        fprintf(out, "%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\n", particles[i].pos.x, particles[i].pos.y, particles[i].pos.z,
-                particles[i].vel.x, particles[i].vel.y, particles[i].vel.z);
-}
-
 void set_rand_state(Particle *particles) {
     double max_poj_vel = MAX_INIT_VEL / std::sqrt(3);
     std::uniform_real_distribution<double> unif(-max_poj_vel, max_poj_vel);
@@ -124,13 +116,34 @@ void time_test(Particle *particles) {
     std::cout << particles[0].vel << std::endl;
 }
 
+void print_data_binary(FILE *out, const Particle *particles, double energy) {
+    fwrite(&energy, sizeof(double), 1, out);
+    fwrite(particles, sizeof(Particle), NUMBER_PARTICLES, out);
+}
+
+void gen_info_file() {
+    FILE *outfile = fopen("info.txt", "w");
+    fprintf(outfile, "DT                  %e\n", DT);
+    fprintf(outfile, "NUMBER_PARTICLES    %d\n", NUMBER_PARTICLES);
+    fprintf(outfile, "MAX_INIT_VEL        %e\n", MAX_INIT_VEL);
+    fprintf(outfile, "CELL_SIZE           %e\n", CELL_SIZE);
+    fprintf(outfile, "MASS                %e\n", MASS);
+    fprintf(outfile, "TIME_MODELING       %e\n", TIME_MODELING);
+    fprintf(outfile, "TIME_PER_FRAME      %e\n", TIME_PER_FRAME);
+    fprintf(outfile, "FORCE_CUT_DIST      %e\n", FORCE_CUT_DIST);
+    fclose(outfile);
+}
+
 int main() {
+    gen_info_file();
     omp_set_num_threads(omp_get_num_procs());
 
     Particle particles[NUMBER_PARTICLES];
     set_rand_state(particles);
 
-    FILE *out_data_file = fopen(path_join({"..", "data.xyz"}).c_str(), "w");
+    FILE *out_data_file = fopen("data.bin", "wb");
+    fwrite(&NUMBER_PARTICLES, sizeof(int), 1, out_data_file);
+    fwrite(&TIME_PER_FRAME, sizeof(double), 1, out_data_file);
 
     double global_time = 0;
 
@@ -154,7 +167,7 @@ int main() {
         n++;
         double mean_energy = sum_energies / n;
 
-        print_data(out_data_file, particles, std::to_string(global_time) + "\t" + std::to_string(cur_energy));
+        print_data_binary(out_data_file, particles, cur_energy);
         printf("\r                                                            \r");
         printf("%.2f %% (%.0f s left). Energy deviation: %.0e", frac_done * 100, time_left,
                std::abs(1 - cur_energy / mean_energy));
@@ -168,7 +181,7 @@ int main() {
         }
     }
     double cur_energy = calc_energy_PAR(particles);
-    print_data(out_data_file, particles, std::to_string(global_time) + "\t" + std::to_string(cur_energy));
+    print_data_binary(out_data_file, particles, cur_energy);
 
     end = std::chrono::high_resolution_clock::now();
     auto time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
@@ -178,7 +191,7 @@ int main() {
 
     std::string command = "python3 " +
                           path_join({"..", "python_scripts", "make_dirs_and_images.py"}) + " " +
-                          ".. " +
+                          ". " +
                           SAVE_PATH;
 
     int success = system(command.c_str());

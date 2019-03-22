@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stats
 
+sys.path.append(path.abspath(path.dirname(__file__)))
+import bin_parser
+
 
 def get_fig_momentum(ts, data):
     moms = np.mean(data[:, :, 1, 0], 1)
@@ -40,8 +43,7 @@ def get_fig_momentum(ts, data):
 if __name__ == "__main__":
     experiment_path = sys.argv[1]
 
-    ts = np.load(path.join(experiment_path, 'data', "ts.npy"))
-    data = np.load(path.join(experiment_path, 'data', 'data.npy'))
+    data, energies, ts = bin_parser.read_file(path.join(experiment_path, 'data.bin'))
 
     fig = get_fig_momentum(ts, data)
     plt.show()

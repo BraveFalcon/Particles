@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stats
 
+sys.path.append(path.abspath(path.dirname(__file__)))
+import bin_parser
+
 
 def get_fig_energy(ts, energies):
     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
@@ -37,8 +40,7 @@ def get_fig_energy(ts, energies):
 if __name__ == '__main__':
     experiment_path = sys.argv[1]
 
-    ts = np.load(path.join(experiment_path, 'data', "ts.npy"))
-    energies = np.load(path.join(experiment_path, 'data', "energies.npy"))
+    data, energies, ts = bin_parser.read_file(path.join(experiment_path, 'data.bin'))
 
     fig = get_fig_energy(ts, energies)
     plt.show()

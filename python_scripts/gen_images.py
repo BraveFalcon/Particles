@@ -1,16 +1,13 @@
 import sys
 from os import path
 import matplotlib.pyplot as plt
-import numpy as np
 
 sys.path.append(path.abspath(path.dirname(__file__)))
-import energy, vels, momentum, kinetic_energy, diffusion
+import energy, vels, momentum, kinetic_energy, diffusion, bin_parser
 
 
 def gen_images(experiment_path):
-    ts = np.load(path.join(experiment_path, 'data', "ts.npy"))
-    energies = np.load(path.join(experiment_path, 'data', "energies.npy"))
-    data = np.load(path.join(experiment_path, 'data', 'data.npy'))
+    data, energies, ts = bin_parser.read_file(path.join(experiment_path, "data.bin"))
 
     fig = vels.get_fig_vels(data)
     plt.savefig(path.join(experiment_path, 'images', 'vel_distr.svg'), dpi=500)
