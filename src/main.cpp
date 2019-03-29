@@ -17,10 +17,14 @@ void set_rand_state(Particle *particles) {
     std::uniform_real_distribution<double> unif(-max_poj_vel, max_poj_vel);
     std::default_random_engine re;
     re.seed(42);
+    Vector3d momentum;
     for (int i = 0; i < NUMBER_PARTICLES; ++i) {
         particles[i].vel.set_values(unif(re), unif(re), unif(re));
+        momentum += particles[i].vel;
     }
 
+    for (int i = 0; i < NUMBER_PARTICLES; ++i)
+        particles[i].vel -= momentum / NUMBER_PARTICLES;
 
     const double a = std::ceil(std::cbrt(NUMBER_PARTICLES)); //количество частиц на одно измерение куба
     const double dist = CELL_SIZE / a;
@@ -38,9 +42,9 @@ void set_rand_state(Particle *particles) {
 
 Vector3d calc_near_r(const Vector3d &pos1, const Vector3d &pos2) {
     Vector3d res = pos2 - pos1;
-    res.x -= int(2 * res.x / CELL_SIZE) * CELL_SIZE;
-    res.y -= int(2 * res.y / CELL_SIZE) * CELL_SIZE;
-    res.z -= int(2 * res.z / CELL_SIZE) * CELL_SIZE;
+    res.x -= round(res.x / CELL_SIZE) * CELL_SIZE;
+    res.y -= round(res.y / CELL_SIZE) * CELL_SIZE;
+    res.z -= round(res.z / CELL_SIZE) * CELL_SIZE;
     return res;
 }
 
@@ -74,7 +78,6 @@ void update_state(Particle *particles) {
     for (int i = 0; i < NUMBER_PARTICLES; ++i) {
         particles[i].vel += forces[i] / MASS * DT;
         particles[i].pos += particles[i].vel * DT;
-        particles[i].pos = calc_near_r(Vector3d(0.0), particles[i].pos);
     }
 }
 
