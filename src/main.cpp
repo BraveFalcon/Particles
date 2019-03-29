@@ -9,7 +9,7 @@
 
 struct Particle {
     Vector3d pos;
-    Vector3d vel;
+    Vector3d prev_pos;
 };
 
 void set_rand_state(Particle *particles) {
@@ -17,27 +17,28 @@ void set_rand_state(Particle *particles) {
     std::uniform_real_distribution<double> unif(-max_poj_vel, max_poj_vel);
     std::default_random_engine re;
     re.seed(42);
-    Vector3d momentum;
-    for (int i = 0; i < NUMBER_PARTICLES; ++i) {
-        particles[i].vel.set_values(unif(re), unif(re), unif(re));
-        momentum += particles[i].vel;
-    }
-
-    for (int i = 0; i < NUMBER_PARTICLES; ++i)
-        particles[i].vel -= momentum / NUMBER_PARTICLES;
 
     const double a = std::ceil(std::cbrt(NUMBER_PARTICLES)); //количество частиц на одно измерение куба
     const double dist = CELL_SIZE / a;
 
     int i = 0;
-    for (double x = -CELL_SIZE / 2 + dist / 2; x < CELL_SIZE / 2; x += dist)
-        for (double y = -CELL_SIZE / 2 + dist / 2; y < CELL_SIZE / 2; y += dist)
-            for (double z = -CELL_SIZE / 2 + dist / 2; z < CELL_SIZE / 2; z += dist) {
-                if (i >= NUMBER_PARTICLES)
-                    return;
+    for (double x = -CELL_SIZE / 2 + dist / 2; x < CELL_SIZE / 2 && i < NUMBER_PARTICLES; x += dist)
+        for (double y = -CELL_SIZE / 2 + dist / 2; y < CELL_SIZE / 2 && i < NUMBER_PARTICLES; y += dist)
+            for (double z = -CELL_SIZE / 2 + dist / 2; z < CELL_SIZE / 2 && i < NUMBER_PARTICLES; z += dist) {
                 particles[i].pos.set_values(x, y, z);
                 ++i;
             }
+
+    Vector3d mean_vel;
+    for (i = 0; i < NUMBER_PARTICLES; ++i) {
+        Vector3d vel = Vector3d(unif(re), unif(re), unif(re));
+        particles[i].prev_pos = particles[i].pos - vel * DT;
+        mean_vel += vel;
+    }
+
+    for (i = 0; i < NUMBER_PARTICLES; ++i)
+        particles[i].prev_pos += mean_vel / NUMBER_PARTICLES * DT;
+
 }
 
 Vector3d calc_near_r(const Vector3d &pos1, const Vector3d &pos2) {
@@ -76,8 +77,9 @@ void update_state(Particle *particles) {
     static Vector3d forces[NUMBER_PARTICLES];
     calc_forces_PAR(particles, forces);
     for (int i = 0; i < NUMBER_PARTICLES; ++i) {
-        particles[i].vel += forces[i] / MASS * DT;
-        particles[i].pos += particles[i].vel * DT;
+        Vector3d new_pos = 2.0 * particles[i].pos - particles[i].prev_pos + forces[i] / MASS * DT * DT;
+        particles[i].prev_pos = particles[i].pos;
+        particles[i].pos = new_pos;
     }
 }
 
@@ -85,7 +87,7 @@ double calc_energy_PAR(const Particle *particles) {
     double energy = 0;
 #pragma omp parallel for reduction(+:energy)
     for (int i = 0; i < NUMBER_PARTICLES; ++i) {
-        energy += 0.5 * MASS * particles[i].vel.sqr();
+        energy += 0.5 * MASS * ((particles[i].pos - particles[i].prev_pos) / DT).sqr();
         for (int j = i + 1; j < NUMBER_PARTICLES; ++j) {
             double dist_sqr = calc_near_r(particles[i].pos, particles[j].pos).sqr();
             energy += 4 * (pow(dist_sqr, -6) - pow(dist_sqr, -3));
@@ -116,12 +118,15 @@ void time_test(Particle *particles) {
     std::cout << "Calculation time: " << std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count()
               << "s\n";
     std::cout << particles[0].pos << std::endl;
-    std::cout << particles[0].vel << std::endl;
 }
 
 void print_data_binary(FILE *out, const Particle *particles, double energy) {
     fwrite(&energy, sizeof(double), 1, out);
-    fwrite(particles, sizeof(Particle), NUMBER_PARTICLES, out);
+    for (int i = 0; i < NUMBER_PARTICLES; ++i) {
+        Vector3d vel = (particles[i].pos - particles[i].prev_pos) / DT;
+        fwrite(&particles[i].pos, sizeof(Vector3d), 1, out);
+        fwrite(&vel, sizeof(Vector3d), 1, out);
+    }
 }
 
 void gen_info_file() {
