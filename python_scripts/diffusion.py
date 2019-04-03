@@ -7,8 +7,20 @@ sys.path.append(path.abspath(path.dirname(__file__)))
 import bin_parser
 
 
+def get_mean_sqrs_delta_r(ts, data):
+    sqrs_delta_r = np.zeros(len(ts))
+    num_particles = data.shape[1]
+    for tau in range(1, len(ts)):
+        for start_point in range(0, len(ts) - tau, tau):
+            for i_particle in range(num_particles):
+                sqrs_delta_r[tau] += np.linalg.norm(
+                    data[start_point + tau, i_particle, 0] - data[start_point, i_particle, 0]) ** 2
+        sqrs_delta_r[tau] /= num_particles * ((len(ts) - 1) // tau)
+    return sqrs_delta_r
+
+
 def get_fig_diffusion(ts, data):
-    sqrs_delta_r = np.mean(np.linalg.norm(data[:, :, 0] - data[0, :, 0], axis=2) ** 2, axis=1)
+    sqrs_delta_r = get_mean_sqrs_delta_r(ts, data)
 
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     fig.suptitle('Diffusion', fontsize=20)
