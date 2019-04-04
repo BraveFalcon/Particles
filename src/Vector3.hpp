@@ -1,3 +1,5 @@
+#pragma once
+
 #include <iostream>
 #include <cmath>
 
@@ -25,7 +27,7 @@ public:
         return out;
     }
 
-    T &operator[](size_t i){
+    T &operator[](size_t i) {
         switch (i) {
             case 0:
                 return x;
