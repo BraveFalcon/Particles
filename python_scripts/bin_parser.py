@@ -34,10 +34,8 @@ def read_file(file_path):
             frame_data.append(np.array((pos, vel)))
         data.append(np.array(frame_data))
         buffer = file.read(read_size)
-    ts = np.arange(0, time_per_frame * len(energies), time_per_frame)
-    if len(ts) != len(energies):
-        print("Lens error, float is bad for this case")
-        exit(1)
+    num_frames = len(energies)
+    ts = np.linspace(0, (num_frames - 1) * time_per_frame, num_frames)
     return np.array(data), np.array(energies), ts
 
 
