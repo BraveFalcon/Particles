@@ -24,7 +24,6 @@ void gen_info_file() {
     fprintf(outfile, "NUMBER_PARTICLES    %d\n", NUMBER_PARTICLES);
     fprintf(outfile, "MAX_INIT_VEL        %e\n", MAX_INIT_VEL);
     fprintf(outfile, "CELL_SIZE           %e\n", CELL_SIZE);
-    fprintf(outfile, "MASS                %e\n", MASS);
     fprintf(outfile, "TIME_MODELING       %e\n", TIME_MODELING);
     fprintf(outfile, "TIME_PER_FRAME      %e\n", TIME_PER_FRAME);
     fprintf(outfile, "FORCE_CUT_DIST      %e\n", FORCE_CUT_DIST);

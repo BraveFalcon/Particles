@@ -40,7 +40,7 @@ double SystemParticles::get_energy() {
         energy = 0;
 #pragma omp parallel for reduction(+:energy)
         for (int i = 0; i < NUMBER_PARTICLES; ++i) {
-            energy += 0.5 * MASS * ((poses[i] - prev_poses[i]) / DT).sqr();
+            energy += 0.5 * ((poses[i] - prev_poses[i]) / DT).sqr();
             for (int j = i + 1; j < NUMBER_PARTICLES; ++j) {
                 double dist_sqr = calc_near_r(poses[i], poses[j]).sqr();
                 energy += 4 * (pow(dist_sqr, -6) - pow(dist_sqr, -3));
@@ -58,7 +58,7 @@ void SystemParticles::update_state(double time) {
         model_time += DT;
         update_forces();
         for (int i = 0; i < NUMBER_PARTICLES; ++i) {
-            Vector3d new_pos = 2.0 * poses[i] - prev_poses[i] + forces[i] / MASS * DT * DT;
+            Vector3d new_pos = 2.0 * poses[i] - prev_poses[i] + forces[i] * DT * DT;
             prev_poses[i] = poses[i];
             poses[i] = new_pos;
         }
