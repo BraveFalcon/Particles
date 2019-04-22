@@ -5,7 +5,6 @@
 #include <omp.h>
 #include "SystemParticles.h"
 
-
 std::string path_join(std::initializer_list<std::string> input) {
     std::string res;
     std::string sep = "/";
@@ -20,6 +19,10 @@ std::string path_join(std::initializer_list<std::string> input) {
 
 void gen_info_file() {
     FILE *outfile = fopen("info.txt", "w");
+    if (!outfile) {
+        std::cerr << "Can't create info file" << std::endl;
+        exit(1);
+    }
     fprintf(outfile, "DT                  %e\n", DT);
     fprintf(outfile, "NUMBER_PARTICLES    %d\n", NUMBER_PARTICLES);
     fprintf(outfile, "MAX_INIT_VEL        %e\n", MAX_INIT_VEL);
@@ -35,6 +38,10 @@ int main() {
 
 
     FILE *out_data_file = fopen("data.bin", "wb");
+    if (!out_data_file) {
+        std::cerr << "Can't create data file" << std::endl;
+        exit(1);
+    }
     fwrite(&NUMBER_PARTICLES, sizeof(int), 1, out_data_file);
     fwrite(&TIME_PER_FRAME, sizeof(double), 1, out_data_file);
 
