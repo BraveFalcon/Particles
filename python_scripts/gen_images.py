@@ -8,25 +8,26 @@ import energy, vels, momentum, kinetic_energy, diffusion, bin_parser
 
 def gen_images(experiment_path):
     data, energies, ts = bin_parser.read_file(path.join(experiment_path, "data.bin"))
+    info = bin_parser.parse_info_file(path.join(experiment_path, 'info.txt'))
 
     fig = vels.get_fig_vels(data)
-    plt.savefig(path.join(experiment_path, 'images', 'vel_distr.svg'), dpi=500)
+    plt.savefig(path.join(experiment_path, 'images', 'vel_distr.eps'))
     plt.close(fig)
 
     fig = energy.get_fig_energy(ts, energies)
-    plt.savefig(path.join(experiment_path, 'images', 'energy.svg'))
+    plt.savefig(path.join(experiment_path, 'images', 'energy.eps'))
     plt.close(fig)
 
     fig = momentum.get_fig_momentum(ts, data)
-    plt.savefig(path.join(experiment_path, 'images', 'momentum.svg'))
+    plt.savefig(path.join(experiment_path, 'images', 'momentum.eps'))
     plt.close(fig)
 
     fig = kinetic_energy.get_fig_kin_energy(ts, data)
-    plt.savefig(path.join(experiment_path, 'images', 'kin_energy.svg'))
+    plt.savefig(path.join(experiment_path, 'images', 'kin_energy.eps'))
     plt.close(fig)
 
     fig = diffusion.get_fig_diffusion(ts, data)
-    plt.savefig(path.join(experiment_path, 'images', 'diffusion.svg'))
+    plt.savefig(path.join(experiment_path, 'images', 'diffusion.eps'))
     plt.close(fig)
 
 
