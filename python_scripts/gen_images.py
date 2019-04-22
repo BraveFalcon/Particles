@@ -3,7 +3,7 @@ from os import path
 import matplotlib.pyplot as plt
 
 sys.path.append(path.abspath(path.dirname(__file__)))
-import energy, vels, momentum, kinetic_energy, diffusion, bin_parser
+import energy, vels, momentum, kinetic_energy, diffusion, bin_parser, radial_distr
 
 
 def gen_images(experiment_path):
@@ -28,6 +28,10 @@ def gen_images(experiment_path):
 
     fig = diffusion.get_fig_diffusion(ts, data)
     plt.savefig(path.join(experiment_path, 'images', 'diffusion.eps'))
+    plt.close(fig)
+
+    fig = radial_distr.get_fig_rad_distr(data, info['CELL_SIZE'])
+    plt.savefig(path.join(experiment_path, 'images', 'radial_distr.eps'))
     plt.close(fig)
 
 
