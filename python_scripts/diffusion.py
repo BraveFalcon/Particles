@@ -1,26 +1,29 @@
+# TODO::Go to C-lib
 import sys
 from os import path
 import matplotlib.pyplot as plt
 import numpy as np
+import ctypes
 
 sys.path.append(path.abspath(path.dirname(__file__)))
 import bin_parser
 
 
-def get_mean_sqrs_delta_r(ts, data):
-    sqrs_delta_r = np.zeros(len(ts))
-    num_particles = data.shape[1]
-    for tau in range(1, len(ts)):
-        for start_point in range(0, len(ts) - tau, tau):
-            for i_particle in range(num_particles):
-                sqrs_delta_r[tau] += np.linalg.norm(
-                    data[start_point + tau, i_particle, 0] - data[start_point, i_particle, 0]) ** 2
-        sqrs_delta_r[tau] /= num_particles * ((len(ts) - 1) // tau)
-    return sqrs_delta_r
-
-
 def get_fig_diffusion(ts, data):
-    sqrs_delta_r = get_mean_sqrs_delta_r(ts, data)
+    sqrs_delta_r = np.zeros(len(ts))
+    lib = ctypes.CDLL(path.join(path.abspath(path.dirname(__file__)), "C-lib/diffusion.so"))
+    func = lib.get_mean_sqrs_delta_r
+    func.argtypes = [
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double)
+    ]
+    cnum_frames = ctypes.c_int(data.shape[0])
+    cnum_particles = ctypes.c_int(data.shape[1])
+    cdata = data.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+    cres = sqrs_delta_r.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+    func(cnum_frames, cnum_particles, cdata, cres)
 
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     fig.suptitle('Diffusion', fontsize=20)
@@ -38,6 +41,5 @@ if __name__ == '__main__':
     experiment_path = sys.argv[1]
 
     data, energies, ts = bin_parser.read_file(path.join(experiment_path, 'data.bin'))
-
     fig = get_fig_diffusion(ts, data)
     plt.show()
