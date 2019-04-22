@@ -9,15 +9,9 @@ Vector3d SystemParticles::calc_near_r(const Vector3d &pos1, const Vector3d &pos2
 }
 
 Vector3d SystemParticles::calc_force(const Vector3d &pos1, const Vector3d &pos2) {
-    static const double max_dist_sqr = FORCE_CUT_DIST * FORCE_CUT_DIST;
     Vector3d r_near = calc_near_r(pos1, pos2);
     double dist_sqr = r_near.sqr();
-    //if (dist_sqr > max_dist_sqr)
-    //    return Vector3d(0.0);
-    //else
     return r_near * 24 * (2 * pow(dist_sqr, -7) - pow(dist_sqr, -4));
-    //double dist8 = dist_sqr * dist_sqr * dist_sqr * dist_sqr;
-    //return r_near * 24 * (2.0 / (dist8 * dist8) * dist_sqr - 1 / dist8);
 }
 
 void SystemParticles::update_forces() {
