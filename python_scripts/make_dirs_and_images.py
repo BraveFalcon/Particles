@@ -15,7 +15,7 @@ new_dir_name = datetime.strftime(datetime.now(), "%m.%d.%y_%H:%M")
 os.makedirs(path.join(experiments_path, new_dir_name, 'images'))
 
 print("Replacing files...")
-shutil.copy(path.join(data_path, 'info.txt'), path.join(experiments_path, new_dir_name, 'info.txt'))
+shutil.move(path.join(data_path, 'info.txt'), path.join(experiments_path, new_dir_name, 'info.txt'))
 shutil.move(path.join(data_path, 'data.bin'), path.join(experiments_path, new_dir_name, 'data.bin'))
 
 os.chdir(path.join(experiments_path, new_dir_name))
