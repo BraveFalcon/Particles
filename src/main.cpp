@@ -26,7 +26,6 @@ void gen_info_file() {
     fprintf(outfile, "CELL_SIZE           %e\n", CELL_SIZE);
     fprintf(outfile, "TIME_MODELING       %e\n", TIME_MODELING);
     fprintf(outfile, "TIME_PER_FRAME      %e\n", TIME_PER_FRAME);
-    fprintf(outfile, "FORCE_CUT_DIST      %e\n", FORCE_CUT_DIST);
     fclose(outfile);
 }
 
