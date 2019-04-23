@@ -58,6 +58,16 @@ def parse_info_file(info_file_path):
     return params
 
 
+def parse_results_file(file_path):
+    file = open(file_path, 'r')
+    res = dict()
+    for line in file:
+        key, data = line.split(':')
+        value, error = data.split('+-')
+        res[key] = (float(value), float(error))
+    return res
+
+
 if __name__ == "__main__":
     experiment_path = sys.argv[1]
 
