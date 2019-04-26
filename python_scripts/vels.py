@@ -4,8 +4,8 @@ from os import path
 import matplotlib.pyplot as plt
 import numpy as np
 
-sys.path.append(path.abspath(path.dirname(__file__)))
-import bin_parser
+sys.path.append(path.split(path.split(path.abspath(__file__))[0])[0])
+from python_scripts import bin_parser
 
 
 def get_fig_vels(data, temperature):

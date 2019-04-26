@@ -5,8 +5,8 @@ import stat
 import sys
 from datetime import datetime
 
-sys.path.append(path.abspath(path.dirname(__file__)))
-import gen_images
+sys.path.append(path.split(path.split(path.abspath(__file__))[0])[0])
+from python_scripts import gen_images, gen_results
 
 data_path = sys.argv[1]
 experiments_path = sys.argv[2]

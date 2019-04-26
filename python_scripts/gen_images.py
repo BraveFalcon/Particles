@@ -2,8 +2,8 @@ import sys
 from os import path
 import matplotlib.pyplot as plt
 
-sys.path.append(path.abspath(path.dirname(__file__)))
-import energy, vels, momentum, kinetic_energy, diffusion, bin_parser, radial_distr
+sys.path.append(path.split(path.split(path.abspath(__file__))[0])[0])
+from python_scripts import energy, vels, momentum, kinetic_energy, diffusion, bin_parser, radial_distr
 
 
 def gen_images(experiment_path):

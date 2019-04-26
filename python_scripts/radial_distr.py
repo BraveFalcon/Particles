@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ctypes
 
-sys.path.append(path.abspath(path.dirname(__file__)))
-import bin_parser
+sys.path.append(path.split(path.split(path.abspath(__file__))[0])[0])
+from python_scripts import bin_parser
 
 
 def get_fig_rad_distr(data, cell_size, cut_dist=-1.0):
