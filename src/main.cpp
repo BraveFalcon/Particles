@@ -24,7 +24,7 @@ void gen_info_file() {
         exit(1);
     }
     fprintf(outfile, "DT                  %e\n", DT);
-    fprintf(outfile, "NUMBER_PARTICLES    %d\n", NUMBER_PARTICLES);
+    fprintf(outfile, "NUM_PARTICLES    %d\n", NUM_PARTICLES);
     fprintf(outfile, "MAX_INIT_VEL        %e\n", MAX_INIT_VEL);
     fprintf(outfile, "CELL_SIZE           %e\n", CELL_SIZE);
     fprintf(outfile, "TIME_MODELING       %e\n", TIME_MODELING);
@@ -42,8 +42,10 @@ int main() {
         std::cerr << "Can't create data file" << std::endl;
         exit(1);
     }
-    fwrite(&NUMBER_PARTICLES, sizeof(int), 1, out_data_file);
+    fwrite(&NUM_FRAMES, sizeof(int), 1, out_data_file);
+    fwrite(&NUM_PARTICLES, sizeof(int), 1, out_data_file);
     fwrite(&TIME_PER_FRAME, sizeof(double), 1, out_data_file);
+    fwrite(&CELL_SIZE, sizeof(double), 1, out_data_file);
 
     SystemParticles system_particles(42);
     double init_energy = system_particles.get_energy();
