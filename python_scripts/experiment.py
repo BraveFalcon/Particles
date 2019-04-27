@@ -29,7 +29,7 @@ class Experiment:
         if path.exists(path.join(experiment_path, self.__dump_name)):
             self.__load_pickle(experiment_path)
         else:
-            file = open(experiment_path, "rb")
+            file = open(path.join(experiment_path, 'data.bin'), "rb")
             self.num_frames, self.num_particles, time_per_frame, self.cell_size = struct.unpack(
                 "=iidd",
                 file.read(struct.calcsize("=iidd"))
@@ -57,7 +57,7 @@ class Experiment:
                 ctypes.POINTER(ctypes.c_double)
             ]
             bin_parser(
-                experiment_path.encode('ascii'),
+                path.join(experiment_path, "data.bin").encode('ascii'),
                 self.poses.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
                 self.vels.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
                 self.energies.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
