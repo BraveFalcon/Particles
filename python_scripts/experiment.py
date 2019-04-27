@@ -19,7 +19,7 @@ class Experiment:
 
     def __load_pickle(self, experiment_path):
         file = open(path.join(experiment_path, self.__dump_name), "rb")
-        self = pickle.load(file)
+        self.__dict__ = pickle.load(file).__dict__
         file.close()
 
     def __get_temperature(self):
