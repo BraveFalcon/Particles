@@ -23,7 +23,7 @@ class Experiment:
         file.close()
 
     def __get_temperature(self):
-        return 1 / 3 * np.mean(np.sum(np.linalg.norm(self.vels, axis=2) ** 2, axis=1)) / self.num_particles
+        return 1 / 3 * np.mean(np.mean(np.linalg.norm(self.vels, axis=2) ** 2, axis=1))
 
     def __init__(self, experiment_path):
         if path.exists(path.join(experiment_path, self.__dump_name)):
