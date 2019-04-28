@@ -13,7 +13,10 @@ from python_scripts import CLib
 def get_figure(exp, cut_dist=-1.0):
     if cut_dist < 0:
         cut_dist = exp.cell_size / 2
-    num_bins = int(np.sqrt(4 / 3 * np.pi * exp.num_particles ** 2 * exp.num_frames * (cut_dist / exp.cell_size) ** 3))
+    num_bins = int(np.sqrt(
+        exp.num_frames * exp.num_particles * (4 / 3 * np.pi * exp.num_particles * (cut_dist / exp.cell_size) ** 3 - 1)
+    )
+    )
 
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     fig.subplots_adjust(bottom=0.1, left=0.1, right=0.95, top=0.92)
