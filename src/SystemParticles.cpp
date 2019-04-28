@@ -2,7 +2,7 @@
 
 //TODO::Make is_equlibrium (on Maxwell distr (Landai-Lifhz p.103)), termostat
 //TODO::Add vels array, change vels calculation to 2DT
-Vector3d SystemParticles::calc_near_r(const Vector3d &pos1, const Vector3d &pos2) {
+Vector3d SystemParticles::calc_near_r(const Vector3d &pos1, const Vector3d &pos2) const {
     Vector3d res = pos2 - pos1;
     res.x -= round(res.x / CELL_SIZE) * CELL_SIZE;
     res.y -= round(res.y / CELL_SIZE) * CELL_SIZE;
@@ -10,7 +10,7 @@ Vector3d SystemParticles::calc_near_r(const Vector3d &pos1, const Vector3d &pos2
     return res;
 }
 
-Vector3d SystemParticles::calc_force(const Vector3d &pos1, const Vector3d &pos2) {
+Vector3d SystemParticles::calc_force(const Vector3d &pos1, const Vector3d &pos2) const {
     Vector3d r_near = calc_near_r(pos1, pos2);
     double dist_sqr = r_near.sqr();
     return r_near * 24 * (2 * pow(dist_sqr, -7) - pow(dist_sqr, -4));
@@ -29,10 +29,10 @@ void SystemParticles::update_forces() {
     }
 }
 
-double SystemParticles::get_energy() {
+double SystemParticles::get_energy() const {
     static double energy;
     if (!is_energy_actual) {
-        is_energy_actual = true;
+        //is_energy_actual = true;
         energy = 0;
 #pragma omp parallel for reduction(+:energy)
         for (int i = 0; i < NUM_PARTICLES; ++i) {
@@ -59,7 +59,7 @@ void SystemParticles::update_state(int num_iters) {
     }
 }
 
-void SystemParticles::write_bin(FILE *file) {
+void SystemParticles::write_bin(FILE *file) const {
     double energy = get_energy();
     fwrite(&energy, sizeof(double), 1, file);
     fwrite(poses, sizeof(Vector3d), NUM_PARTICLES, file);
@@ -74,11 +74,6 @@ SystemParticles::SystemParticles(unsigned seed) {
     forces = new Vector3d[NUM_PARTICLES];
     is_energy_actual = false;
 
-    double max_poj_vel = MAX_INIT_VEL / std::sqrt(3);
-    std::uniform_real_distribution<double> unif(-max_poj_vel, max_poj_vel);
-    std::default_random_engine re;
-    re.seed(seed);
-
     const double a = std::ceil(std::cbrt(NUM_PARTICLES)); //количество частиц на одно измерение куба
     const double dist = CELL_SIZE / a;
 
@@ -90,9 +85,14 @@ SystemParticles::SystemParticles(unsigned seed) {
                 ++i;
             }
 
-    Vector3d sum_vel;
+
+    std::normal_distribution<double> distribution(0, std::sqrt(TEMPERATURE));
+    std::default_random_engine random_engine;
+    random_engine.seed(seed);
+
+    Vector3d sum_vel(0);
     for (i = 0; i < NUM_PARTICLES; ++i) {
-        vels[i] = Vector3d(unif(re), unif(re), unif(re));
+        vels[i] = Vector3d(distribution(random_engine), distribution(random_engine), distribution(random_engine));
         sum_vel += vels[i];
     }
 
@@ -109,9 +109,9 @@ SystemParticles::~SystemParticles() {
     delete[] forces;
 }
 
-double SystemParticles::get_kin_energy() {
+double SystemParticles::get_temperature() const {
     double res = 0.0;
     for (int i = 0; i < NUM_PARTICLES; ++i)
-        res += 0.5 * vels[i].sqr();
-    return res;
+        res += vels[i].sqr();
+    return res / 3 / NUM_PARTICLES;
 }

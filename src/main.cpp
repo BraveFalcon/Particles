@@ -1,11 +1,10 @@
-//TODO::Add temperature to runtime info, reformat this info with new escape seq
-//TODO::Add normal format of time left, upgrade timer to integral
 #include <iostream>
 #include <chrono>
 #include <string>
 #include "../model_constants.h"
 #include <omp.h>
 #include "SystemParticles.h"
+#include "TimeLeft.hpp"
 
 std::string path_join(std::initializer_list<std::string> input) {
     std::string res;
@@ -30,6 +29,22 @@ std::string path_get_head(std::string path) {
     return path.substr(0, pos);
 }
 
+void print_info(int frame, const SystemParticles &systemParticles) {
+    static TimeLeft timeLeft;
+    static double init_energy = systemParticles.get_energy();
+    double frac_done = 1.0 * frame / NUM_FRAMES;
+#ifdef _WIN64
+    system("cls");
+#else
+    system("clear");
+#endif
+    printf("Complete          %.2f%%\n", frac_done * 100);
+    printf("Left              %s\n", timeLeft(frac_done).c_str());
+    printf("Energy deviation  %.0e\n", std::abs(1 - systemParticles.get_energy() / init_energy));
+    printf("Temperature       %.4f\n", systemParticles.get_temperature());
+    std::cout.flush();
+}
+
 /*
 void gen_info_file() {
     FILE *outfile = fopen("info.txt", "w");
@@ -50,12 +65,12 @@ int main(int argc, char **argv) {
     //gen_info_file();
     omp_set_num_threads(omp_get_num_procs());
 
-
     if (argc < 2) {
         std::cerr << "You forgot write save path" << std::endl;
         exit(1);
     }
     std::string save_path(argv[1]);
+
 
     FILE *out_data_file = fopen(path_join({save_path, "data.bin"}).c_str(), "wb");
     if (!out_data_file) {
@@ -68,34 +83,24 @@ int main(int argc, char **argv) {
     fwrite(&time_per_frame, sizeof(double), 1, out_data_file);
     fwrite(&CELL_SIZE, sizeof(double), 1, out_data_file);
 
+
     SystemParticles system_particles(42);
-    double init_energy = system_particles.get_energy();
 
-    std::chrono::high_resolution_clock::time_point start, end, cur, prev;
-    double frac_done, frac_prev;
 
+    std::chrono::high_resolution_clock::time_point start, end;
     start = std::chrono::high_resolution_clock::now();
+
     for (int frame = 0; frame < NUM_FRAMES; ++frame) {
-        frac_done = 1.0 * frame / NUM_FRAMES;
-        cur = std::chrono::high_resolution_clock::now();
-        double time_left = std::chrono::duration_cast<std::chrono::duration<double>>(cur - prev).count() /
-                (frac_done - frac_prev) *
-                (1 - frac_done);
-        frac_prev = frac_done;
-        prev = cur;
+        print_info(frame, system_particles);
 
-        system_particles.write_bin(out_data_file);
-        printf("\r                                                            \r");
-        printf("%.2f %% (%.0f s left). Energy deviation: %.0e", frac_done * 100, time_left,
-               std::abs(1 - system_particles.get_energy() / init_energy));
-        std::cout.flush();
         system_particles.update_state(ITERS_PER_FRAME);
+        system_particles.write_bin(out_data_file);
     }
-    system_particles.write_bin(out_data_file);
 
+    print_info(NUM_FRAMES, system_particles);
     end = std::chrono::high_resolution_clock::now();
-    auto time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-    std::cout << "\rCalculation time: " << time_span.count() << "s\n";
+    auto calc_time = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+    std::cout << "Calculation time  " << TimeLeft::secsToTimeStr(calc_time) << "\n\n";
 
     fclose(out_data_file);
 
