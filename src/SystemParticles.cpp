@@ -1,5 +1,7 @@
 #include "SystemParticles.h"
 
+//TODO::Make is_equlibrium (on Maxwell distr (Landai-Lifhz p.103)), termostat
+//TODO::Add vels array, change vels calculation to 2DT
 Vector3d SystemParticles::calc_near_r(const Vector3d &pos1, const Vector3d &pos2) {
     Vector3d res = pos2 - pos1;
     res.x -= round(res.x / CELL_SIZE) * CELL_SIZE;
@@ -105,4 +107,11 @@ SystemParticles::~SystemParticles() {
     delete[] prev_poses;
     delete[] vels;
     delete[] forces;
+}
+
+double SystemParticles::get_kin_energy() {
+    double res = 0.0;
+    for (int i = 0; i < NUM_PARTICLES; ++i)
+        res += 0.5 * vels[i].sqr();
+    return res;
 }

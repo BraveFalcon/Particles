@@ -2,6 +2,8 @@ import numpy as np
 import struct
 import sys
 from os import path
+from time import sleep
+import gc
 
 
 def read_file(file_path):
@@ -36,7 +38,12 @@ def read_file(file_path):
         buffer = file.read(read_size)
     num_frames = len(energies)
     ts = np.linspace(0, (num_frames - 1) * time_per_frame, num_frames)
-    return np.array(data), np.array(energies), ts
+    npdata = np.array(data)
+    npenergies = np.array(energies)
+    del data
+    del energies
+    gc.collect()
+    return npdata, npenergies, ts
 
 
 def save_data_to_xyz(data, cell_size, outfile_path):
@@ -68,9 +75,25 @@ def parse_results_file(file_path):
     return res
 
 
+def resave_in_new_format(experiment_path):
+    data, energies, ts = read_file(path.join(experiment_path, 'data.bin'))
+    cell_size = parse_info_file(path.join(experiment_path, 'info.txt'))['CELL_SIZE']
+    num_frames = data.shape[0]
+    num_particles = data.shape[1]
+    time_per_frame = ts[1] - ts[0]
+
+    outfile = open(path.join(experiment_path, 'data.bin'), 'wb')
+    outfile.write(struct.pack("=iidd", num_frames, num_particles, time_per_frame, cell_size))
+
+    for frame in range(num_frames):
+        outfile.write(struct.pack("=d", energies[frame]))
+        outfile.write(data[frame, :, 0].tobytes())
+        outfile.write(data[frame, :, 1].tobytes())
+
+    outfile.close()
+
+
 if __name__ == "__main__":
     experiment_path = sys.argv[1]
 
-    data, energies, ts = read_file(path.join(experiment_path, 'data.bin'))
-    cell_size = parse_info_file(path.join(experiment_path, 'info.txt'))['CELL_SIZE']
-    save_data_to_xyz(data, cell_size, sys.argv[2])
+    resave_in_new_format(experiment_path)

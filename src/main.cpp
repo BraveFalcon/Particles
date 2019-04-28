@@ -1,3 +1,5 @@
+//TODO::Add temperature to runtime info, reformat this info with new escape seq
+//TODO::Add normal format of time left, upgrade timer to integral
 #include <iostream>
 #include <chrono>
 #include <string>
@@ -77,8 +79,8 @@ int main(int argc, char **argv) {
         frac_done = 1.0 * frame / NUM_FRAMES;
         cur = std::chrono::high_resolution_clock::now();
         double time_left = std::chrono::duration_cast<std::chrono::duration<double>>(cur - prev).count() /
-                           (frac_done - frac_prev) *
-                           (1 - frac_done);
+                (frac_done - frac_prev) *
+                (1 - frac_done);
         frac_prev = frac_done;
         prev = cur;
 
