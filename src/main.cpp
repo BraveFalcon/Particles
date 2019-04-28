@@ -17,6 +17,18 @@ std::string path_join(std::initializer_list<std::string> input) {
     return res;
 }
 
+std::string path_get_head(std::string path) {
+    std::string sep = "/";
+#ifdef _WIN64
+    sep = "\\";
+#endif
+    size_t pos = path.find_last_of(sep);
+    if (pos == std::string::npos)
+        return "";
+    return path.substr(0, pos);
+}
+
+/*
 void gen_info_file() {
     FILE *outfile = fopen("info.txt", "w");
     if (!outfile) {
@@ -31,20 +43,27 @@ void gen_info_file() {
     fprintf(outfile, "TIME_PER_FRAME      %e\n", TIME_PER_FRAME);
     fclose(outfile);
 }
-
-int main() {
-    gen_info_file();
+*/
+int main(int argc, char **argv) {
+    //gen_info_file();
     omp_set_num_threads(omp_get_num_procs());
 
 
-    FILE *out_data_file = fopen("data.bin", "wb");
+    if (argc < 2) {
+        std::cerr << "You forgot write save path" << std::endl;
+        exit(1);
+    }
+    std::string save_path(argv[1]);
+
+    FILE *out_data_file = fopen(path_join({save_path, "data.bin"}).c_str(), "wb");
     if (!out_data_file) {
         std::cerr << "Can't create data file" << std::endl;
         exit(1);
     }
     fwrite(&NUM_FRAMES, sizeof(int), 1, out_data_file);
     fwrite(&NUM_PARTICLES, sizeof(int), 1, out_data_file);
-    fwrite(&TIME_PER_FRAME, sizeof(double), 1, out_data_file);
+    double time_per_frame = ITERS_PER_FRAME * DT;
+    fwrite(&time_per_frame, sizeof(double), 1, out_data_file);
     fwrite(&CELL_SIZE, sizeof(double), 1, out_data_file);
 
     SystemParticles system_particles(42);
@@ -54,8 +73,8 @@ int main() {
     double frac_done, frac_prev;
 
     start = std::chrono::high_resolution_clock::now();
-    while (system_particles.get_model_time() < TIME_MODELING - DT) {
-        frac_done = system_particles.get_model_time() / TIME_MODELING;
+    for (int frame = 0; frame < NUM_FRAMES; ++frame) {
+        frac_done = 1.0 * frame / NUM_FRAMES;
         cur = std::chrono::high_resolution_clock::now();
         double time_left = std::chrono::duration_cast<std::chrono::duration<double>>(cur - prev).count() /
                            (frac_done - frac_prev) *
@@ -68,7 +87,7 @@ int main() {
         printf("%.2f %% (%.0f s left). Energy deviation: %.0e", frac_done * 100, time_left,
                std::abs(1 - system_particles.get_energy() / init_energy));
         std::cout.flush();
-        system_particles.update_state(TIME_PER_FRAME);
+        system_particles.update_state(ITERS_PER_FRAME);
     }
     system_particles.write_bin(out_data_file);
 
@@ -78,13 +97,11 @@ int main() {
 
     fclose(out_data_file);
 
-    std::string command = "python3 " +
-                          path_join({"..", "python_scripts", "make_dirs_and_images.py"}) + " " +
-                          ". " +
-                          SAVE_PATH;
+    std::string command =
+            "python3 " + path_join({path_get_head(argv[0]), "..", "python_scripts", "make_dirs_and_images.py"}) + " " +
+            save_path + " " + save_path;
 
-    int success = std::system(command.c_str());
-    if (success != 0) {
+    if (std::system(command.c_str())) {
         std::cerr << "Python error";
         exit(1);
     }

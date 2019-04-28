@@ -34,7 +34,7 @@ double SystemParticles::get_energy() {
         energy = 0;
 #pragma omp parallel for reduction(+:energy)
         for (int i = 0; i < NUM_PARTICLES; ++i) {
-            energy += 0.5 * ((poses[i] - prev_poses[i]) / DT).sqr();
+            energy += 0.5 * vels[i].sqr();
             for (int j = i + 1; j < NUM_PARTICLES; ++j) {
                 double dist_sqr = calc_near_r(poses[i], poses[j]).sqr();
                 energy += 4 * (pow(dist_sqr, -6) - pow(dist_sqr, -3));
@@ -44,15 +44,13 @@ double SystemParticles::get_energy() {
     return energy;
 }
 
-void SystemParticles::update_state(double time) {
+void SystemParticles::update_state(int num_iters) {
     is_energy_actual = false;
-    double frame_time = 0;
-    while (frame_time < time) {
-        frame_time += DT;
-        model_time += DT;
+    for (int iter = 0; iter < num_iters; ++iter) {
         update_forces();
         for (int i = 0; i < NUM_PARTICLES; ++i) {
             Vector3d new_pos = 2.0 * poses[i] - prev_poses[i] + forces[i] * DT * DT;
+            vels[i] = (new_pos - prev_poses[i]) * 0.5 / DT;
             prev_poses[i] = poses[i];
             poses[i] = new_pos;
         }
@@ -66,13 +64,12 @@ void SystemParticles::write_bin(FILE *file) {
     fwrite(vels, sizeof(Vector3d), NUM_PARTICLES, file);
 }
 
-double SystemParticles::get_model_time() { return model_time; }
 
 SystemParticles::SystemParticles(unsigned seed) {
     poses = new Vector3d[NUM_PARTICLES];
     prev_poses = new Vector3d[NUM_PARTICLES];
+    vels = new Vector3d[NUM_PARTICLES];
     forces = new Vector3d[NUM_PARTICLES];
-    model_time = 0.0;
     is_energy_actual = false;
 
     double max_poj_vel = MAX_INIT_VEL / std::sqrt(3);
@@ -91,19 +88,21 @@ SystemParticles::SystemParticles(unsigned seed) {
                 ++i;
             }
 
-    Vector3d mean_vel;
+    Vector3d sum_vel;
     for (i = 0; i < NUM_PARTICLES; ++i) {
-        Vector3d vel = Vector3d(unif(re), unif(re), unif(re));
-        prev_poses[i] = poses[i] - vel * DT;
-        mean_vel += vel;
+        vels[i] = Vector3d(unif(re), unif(re), unif(re));
+        sum_vel += vels[i];
     }
 
-    for (i = 0; i < NUM_PARTICLES; ++i)
-        prev_poses[i] += mean_vel / NUM_PARTICLES * DT;
+    for (i = 0; i < NUM_PARTICLES; ++i) {
+        vels[i] -= sum_vel / NUM_PARTICLES;
+        prev_poses[i] = poses[i] - vels[i] * DT;
+    }
 }
 
 SystemParticles::~SystemParticles() {
     delete[] poses;
     delete[] prev_poses;
+    delete[] vels;
     delete[] forces;
 }
