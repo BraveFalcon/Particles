@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
+#include <omp.h>
 
 void diffusion(
         int num_frames,

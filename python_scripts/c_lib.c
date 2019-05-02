@@ -37,6 +37,8 @@ void radial_distr(
     }
     for (int i = 0; i < num_bins; ++i)
         ns[i] = 0;
+    omp_set_num_threads(omp_get_num_procs());
+#pragma omp parallel for
     for (int frame = 0; frame < num_frames; ++frame) {
         for (int particle = 0; particle < num_particles; ++particle) {
             const double *pos = poses + 3 * (num_particles * frame + particle);
@@ -51,6 +53,7 @@ void radial_distr(
                 double r = sqrt(r_sqr);
                 if (r < max_r) {
                     unsigned bin = (unsigned) (r / max_r * num_bins);
+#pragma omp atomic
                     ++ns[bin];
                 }
             }
