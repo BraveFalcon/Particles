@@ -7,7 +7,7 @@
 #include <iomanip>
 
 int NUM_THREADS = 4;
-const int NUM_FRAMES = 50;
+const int NUM_FRAMES = 1;
 const int ITERS_PER_FRAME = 100;
 const int NUM_CELLS_PER_DIM = 5;
 const double DT = 1e-3;

@@ -29,7 +29,8 @@ SystemParticles::SystemParticles(int num_cells_per_dim, double density) :
         for (int y = 0; y < 2 * particles_per_dim && particle < NUM_PARTICLES; ++y) {
             for (int x = 0; x < particles_per_dim && particle < NUM_PARTICLES; ++x) {
                 poses[particle++] =
-                        Vector3d(dist / 2) + Vector3d(dist * x + ((z - y) % 2) * dist / 2, dist / 2 * y, dist / 2 * z);
+                        Vector3d(dist * 0.25) +
+                        Vector3d(dist * x + ((z - y) % 2) * dist / 2, dist / 2 * y, dist / 2 * z);
             }
         }
     }
