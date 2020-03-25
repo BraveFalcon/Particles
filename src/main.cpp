@@ -64,25 +64,13 @@ void gen_info_file() {
 }
 */
 
-void timeTest() {
-    SystemParticles system_particles(42);
-
-    for (int frame = 0; frame < NUM_FRAMES; ++frame)
-        system_particles.update_state(ITERS_PER_FRAME);
-
-    printf("%.0e\n%.0e", system_particles.get_temperature() - 1.0639645586253037023993784e+00,
-           system_particles.get_energy() - 4.5237912348211293647182174e+03);
-
-}
-
 int NUM_THREADS;
 
 int main(int argc, char **argv) {
     //gen_info_file();
     NUM_THREADS = omp_get_max_threads();
     omp_set_num_threads(NUM_THREADS);
-    //timeTest();
-    //exit(0);
+
     if (argc < 2) {
         std::cerr << "You forgot write save path" << std::endl;
         exit(1);

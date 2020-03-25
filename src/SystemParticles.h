@@ -17,13 +17,11 @@ private:
     Vector3d *prev_poses;
     Vector3d *vels;
     Vector3d *forces;
-    bool is_energy_actual;
 
-    Vector3d calc_near_r(const Vector3d &pos1, const Vector3d &pos2) const;
 
-    Vector3d calc_force(const Vector3d &pos1, const Vector3d &pos2) const;
+    [[nodiscard]] Vector3d calc_near_r(const Vector3d &pos1, const Vector3d &pos2) const;
 
-    double calc_virial(const Vector3d &pos1, const Vector3d &pos2) const;
+    [[nodiscard]] double calc_virial(const Vector3d &pos1, const Vector3d &pos2) const;
 
     void update_forces();
 
@@ -42,11 +40,11 @@ public:
 
     void write_bin(FILE *file) const;
 
-    double get_energy() const;
+    [[nodiscard]] double get_energy() const;
 
-    double get_temperature() const;
+    [[nodiscard]] double get_temperature() const;
 
-    double get_pressure() const;
+    [[nodiscard]] double get_pressure() const;
 
     void set_vels(double temperature, unsigned seed);
 

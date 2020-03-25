@@ -3,7 +3,7 @@ project(Particles)
 
 set(CMAKE_CXX_STANDARD 17)
 
-set(INTEL_CC ON)
+set(INTEL_CC OFF)
 
 if (INTEL_CC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qopenmp -Wl,-rpath=/opt/intel/compilers_and_libraries/linux/lib/intel64 -O3 -xHost -ipo -no-prec-div")
