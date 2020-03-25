@@ -1,11 +1,18 @@
 #include <iostream>
 #include <chrono>
 #include <string>
-#include "../model_constants.h"
 #include <omp.h>
 #include "SystemParticles.h"
 #include "TimeLeft.hpp"
 #include <iomanip>
+
+int NUM_THREADS = 4;
+const int NUM_FRAMES = 50;
+const int ITERS_PER_FRAME = 100;
+const int NUM_CELLS_PER_DIM = 5;
+const double DT = 1e-3;
+const double DENSITY = 0.7;
+
 
 std::string path_join(std::initializer_list<std::string> input) {
     std::string res;
@@ -64,11 +71,10 @@ void gen_info_file() {
 }
 */
 
-int NUM_THREADS;
+
 
 int main(int argc, char **argv) {
     //gen_info_file();
-    NUM_THREADS = omp_get_max_threads();
     omp_set_num_threads(NUM_THREADS);
 
     if (argc < 2) {
@@ -83,26 +89,24 @@ int main(int argc, char **argv) {
         std::cerr << "Can't create data file" << std::endl;
         exit(1);
     }
-    fwrite(&NUM_FRAMES, sizeof(int), 1, out_data_file);
-    fwrite(&NUM_PARTICLES, sizeof(int), 1, out_data_file);
-    double time_per_frame = ITERS_PER_FRAME * DT;
-    fwrite(&time_per_frame, sizeof(double), 1, out_data_file);
-    fwrite(&CELL_SIZE, sizeof(double), 1, out_data_file);
 
 
-    SystemParticles system_particles(
-            "/home/brave_falcon/CLionProjects/Particles_git/experiments/4sem/pressure/1.0/data.bin", 0);
-    //SystemParticles system_particles(146);
+    //SystemParticles system_particles(
+    //        "/home/brave_falcon/CLionProjects/Particles_git/experiments/4sem/pressure/1.0/data.bin", 0);
+    SystemParticles system_particles(NUM_CELLS_PER_DIM, DENSITY);
+    system_particles.dt = DT;
+    system_particles.set_vels(1.0);
+    system_particles.init_bin(out_data_file, NUM_FRAMES, DT * ITERS_PER_FRAME);
 
     std::chrono::high_resolution_clock::time_point start, end;
     start = std::chrono::high_resolution_clock::now();
     for (int frame = 0; frame < NUM_FRAMES; ++frame) {
         print_info(frame, system_particles);
-        system_particles.update_state(ITERS_PER_FRAME);
         system_particles.write_bin(out_data_file);
+        system_particles.update_state(ITERS_PER_FRAME);
     }
-
     print_info(NUM_FRAMES, system_particles);
+    system_particles.write_bin(out_data_file);
     end = std::chrono::high_resolution_clock::now();
     auto calc_time = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
     printf("%.3e", calc_time);

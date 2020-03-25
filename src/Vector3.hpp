@@ -8,7 +8,7 @@ class Vector3 {
 public:
     T x, y, z;
 
-    Vector3() = default;
+    Vector3() : x(0.0), y(0.0), z(0.0) {};
 
     explicit Vector3(const T &all_) {
         x = all_;

@@ -2,25 +2,25 @@
 
 //TODO::Go on float in all operation, except accumulation
 //TODO::Linked list
-//TODO::Remove model constants
 
-SystemParticles::SystemParticles(unsigned seed) {
+void SystemParticles::init_arrays() {
     poses = new Vector3d[NUM_PARTICLES];
     prev_poses = new Vector3d[NUM_PARTICLES];
     vels = new Vector3d[NUM_PARTICLES];
     forces = new Vector3d[NUM_PARTICLES];
+    th_forces = new Vector3d *[NUM_THREADS];
+    th_data = new double *[NUM_THREADS];
 
-//    const double a = std::ceil(std::cbrt(NUM_PARTICLES)); //количество частиц на одно измерение куба
-//    const double dist = CELL_SIZE / a;
-//
-//    int i = 0;
-//
-//    for (double x = -CELL_SIZE / 2 + dist / 2; x < CELL_SIZE / 2 && i < NUM_PARTICLES; x += dist)
-//        for (double y = -CELL_SIZE / 2 + dist / 2; y < CELL_SIZE / 2 && i < NUM_PARTICLES; y += dist)
-//            for (double z = -CELL_SIZE / 2 + dist / 2; z < CELL_SIZE / 2 && i < NUM_PARTICLES; z += dist) {
-//                poses[i].set_values(x, y, z);
-//                ++i;
-//            }
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        th_forces[i] = new Vector3d[NUM_PARTICLES];
+        th_data[i] = new double[3 * NUM_PARTICLES];
+    }
+}
+
+SystemParticles::SystemParticles(int num_cells_per_dim, double density) :
+        NUM_PARTICLES(4 * num_cells_per_dim * num_cells_per_dim * num_cells_per_dim) {
+    init_arrays();
+    CELL_SIZE = pow(NUM_PARTICLES / density, 1.0 / 3);
     const auto particles_per_dim = static_cast<unsigned >(std::ceil(std::cbrt(NUM_PARTICLES / 4.0)));
     const double dist = CELL_SIZE / particles_per_dim;
 
@@ -33,10 +33,10 @@ SystemParticles::SystemParticles(unsigned seed) {
             }
         }
     }
-    set_vels(TEMPERATURE, seed);
 }
 
-SystemParticles::SystemParticles(std::string file_path, int frame) {
+SystemParticles::SystemParticles(std::string file_path, int frame, int num_particles_) : NUM_PARTICLES(num_particles_) {
+    init_arrays();
     FILE *file = fopen(file_path.c_str(), "rb");
     if (!file) {
         fprintf(stderr, "Can't open file in constructor");
@@ -47,7 +47,9 @@ SystemParticles::SystemParticles(std::string file_path, int frame) {
         fprintf(stderr, "Can't read num_frames from bin_file in constructor");
         exit(1);
     }
-    if (frame >= num_frames) {
+    if (frame < 0)
+        frame = num_frames - frame;
+    if (frame >= num_frames || frame < 0) {
         fprintf(stderr, "There isn't frame with this number in constructor");
         exit(1);
     }
@@ -60,27 +62,20 @@ SystemParticles::SystemParticles(std::string file_path, int frame) {
         fprintf(stderr, "Numbers of particles aren't same in constructor");
         exit(1);
     }
-    double time_per_frame, cell_size;
+    double time_per_frame;
     if (!fread(&time_per_frame, sizeof(double), 1, file)) {
         fprintf(stderr, "Can't read time_per_frame from bin_file in constructor");
         exit(1);
     }
+    double cell_size;
     if (!fread(&cell_size, sizeof(double), 1, file)) {
         fprintf(stderr, "Can't read cell_size from bin_file in constructor");
         exit(1);
-    }
-    if (cell_size != CELL_SIZE) {
-        fprintf(stderr, "Size of cells isn't same in constructor");
-        //exit(1);
     }
     if (fseek(file, sizeof(double) * (1 + 6 * num_particles) * frame, SEEK_CUR) != 0) {
         fprintf(stderr, "Can't find  %d frame in bin_file in constructor", frame);
         exit(1);
     }
-    poses = new Vector3d[NUM_PARTICLES];
-    prev_poses = new Vector3d[NUM_PARTICLES];
-    vels = new Vector3d[NUM_PARTICLES];
-    forces = new Vector3d[NUM_PARTICLES];
 
     double energy;
     if (!fread(&energy, sizeof(double), 1, file)) {
@@ -101,7 +96,7 @@ SystemParticles::SystemParticles(std::string file_path, int frame) {
         exit(1);
     }
     for (int i = 0; i < NUM_PARTICLES; ++i) {
-        prev_poses[i] = poses[i] - vels[i] * DT;
+        prev_poses[i] = poses[i] - vels[i] * dt;
     }
 
 }
@@ -111,6 +106,13 @@ SystemParticles::~SystemParticles() {
     delete[] prev_poses;
     delete[] vels;
     delete[] forces;
+
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        delete[] th_forces[i];
+        delete[] th_data[i];
+    }
+    delete[] th_forces;
+    delete[] th_data;
 }
 
 Vector3d SystemParticles::calc_near_r(const Vector3d &pos1, const Vector3d &pos2) const {
@@ -131,8 +133,6 @@ double SystemParticles::calc_virial(const Vector3d &pos1, const Vector3d &pos2) 
 }
 
 void SystemParticles::update_forces() {
-    static auto th_forces = new Vector3d[NUM_THREADS][NUM_PARTICLES];
-    static auto th_data = new double[NUM_THREADS][NUM_PARTICLES * 3];
     for (int i = 0; i < NUM_PARTICLES; ++i) {
         for (int th = 0; th < NUM_THREADS; ++th)
             th_forces[th][i].set_values(0.0);
@@ -178,12 +178,19 @@ void SystemParticles::update_state(int num_iters) {
     for (int iter = 0; iter < num_iters; ++iter) {
         update_forces();
         for (int i = 0; i < NUM_PARTICLES; ++i) {
-            Vector3d new_pos = 2.0 * poses[i] - prev_poses[i] + forces[i] * DT * DT;
-            vels[i] = (new_pos - prev_poses[i]) * 0.5 / DT;
+            Vector3d new_pos = 2.0 * poses[i] - prev_poses[i] + forces[i] * dt * dt;
+            vels[i] = (new_pos - prev_poses[i]) * 0.5 / dt;
             prev_poses[i] = poses[i];
             poses[i] = new_pos;
         }
     }
+}
+
+void SystemParticles::init_bin(FILE *file, int num_frames, double time_per_frame) const {
+    fwrite(&num_frames, sizeof(int), 1, file);
+    fwrite(&NUM_PARTICLES, sizeof(int), 1, file);
+    fwrite(&time_per_frame, sizeof(double), 1, file);
+    fwrite(&CELL_SIZE, sizeof(double), 1, file);
 }
 
 void SystemParticles::write_bin(FILE *file) const {
@@ -208,7 +215,7 @@ void SystemParticles::set_vels(double temperature, unsigned seed) {
 
     for (int i = 0; i < NUM_PARTICLES; ++i) {
         vels[i] -= sum_vel / NUM_PARTICLES;
-        prev_poses[i] = poses[i] - vels[i] * DT;
+        prev_poses[i] = poses[i] - vels[i] * dt;
     }
 }
 
@@ -257,14 +264,14 @@ void SystemParticles::termostat_andersen(int num_particles, double temp) {
     }
 }
 
-void SystemParticles::termostat_berendsen(int num_iters, double temp) {
+void SystemParticles::termostat_berendsen(int num_iters, double temp, double tau) {
     for (int iter = 0; iter < num_iters; ++iter) {
         double temperature = get_temperature();
         update_forces();
         for (int i = 0; i < NUM_PARTICLES; ++i) {
             Vector3d new_pos =
-                    2.0 * poses[i] - prev_poses[i] + (forces[i] + vels[i] / TAU * (temp / temperature - 1)) * DT * DT;
-            vels[i] = (new_pos - prev_poses[i]) * 0.5 / DT;
+                    2.0 * poses[i] - prev_poses[i] + (forces[i] + vels[i] / tau * (temp / temperature - 1)) * dt * dt;
+            vels[i] = (new_pos - prev_poses[i]) * 0.5 / dt;
             prev_poses[i] = poses[i];
             poses[i] = new_pos;
         }
