@@ -5,7 +5,6 @@
 #include <cstdio>
 #include <omp.h>
 
-extern int NUM_THREADS;
 
 //TODO::Go to sdtl vectors
 class SystemParticles {
@@ -17,6 +16,7 @@ private:
     Vector3d **th_forces;
     double **th_data;
     const double CUT_DIST = 2.5;
+    const int NUM_THREADS;
 
     [[nodiscard]] Vector3d calc_near_r(const Vector3d &pos1, const Vector3d &pos2) const;
 

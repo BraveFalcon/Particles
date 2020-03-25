@@ -4,6 +4,7 @@
 //TODO::Linked list
 
 void SystemParticles::init_arrays() {
+    omp_set_num_threads(NUM_THREADS);
     poses = new Vector3d[NUM_PARTICLES];
     prev_poses = new Vector3d[NUM_PARTICLES];
     vels = new Vector3d[NUM_PARTICLES];
@@ -17,8 +18,10 @@ void SystemParticles::init_arrays() {
     }
 }
 
-SystemParticles::SystemParticles(int num_cells_per_dim, double density) :
-        NUM_PARTICLES(4 * num_cells_per_dim * num_cells_per_dim * num_cells_per_dim) {
+SystemParticles::SystemParticles(int num_cells_per_dim, double density) : NUM_THREADS(omp_get_max_threads()),
+                                                                          NUM_PARTICLES(4 * num_cells_per_dim *
+                                                                                        num_cells_per_dim *
+                                                                                        num_cells_per_dim) {
     init_arrays();
     CELL_SIZE = pow(NUM_PARTICLES / density, 1.0 / 3);
     const auto particles_per_dim = static_cast<unsigned >(std::ceil(std::cbrt(NUM_PARTICLES / 4.0)));
@@ -36,7 +39,8 @@ SystemParticles::SystemParticles(int num_cells_per_dim, double density) :
     }
 }
 
-SystemParticles::SystemParticles(std::string file_path, int frame, int num_particles_) : NUM_PARTICLES(num_particles_) {
+SystemParticles::SystemParticles(std::string file_path, int frame, int num_particles_) : NUM_THREADS(
+        omp_get_max_threads()), NUM_PARTICLES(num_particles_) {
     init_arrays();
     FILE *file = fopen(file_path.c_str(), "rb");
     if (!file) {
@@ -68,12 +72,11 @@ SystemParticles::SystemParticles(std::string file_path, int frame, int num_parti
         fprintf(stderr, "Can't read time_per_frame from bin_file in constructor");
         exit(1);
     }
-    double cell_size;
-    if (!fread(&cell_size, sizeof(double), 1, file)) {
+    if (!fread(&CELL_SIZE, sizeof(double), 1, file)) {
         fprintf(stderr, "Can't read cell_size from bin_file in constructor");
         exit(1);
     }
-    if (fseek(file, sizeof(double) * (1 + 6 * num_particles) * frame, SEEK_CUR) != 0) {
+    if (fseek(file, sizeof(double) * (2 + 6 * num_particles) * frame, SEEK_CUR) != 0) {
         fprintf(stderr, "Can't find  %d frame in bin_file in constructor", frame);
         exit(1);
     }

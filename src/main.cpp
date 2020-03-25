@@ -6,13 +6,11 @@
 #include "TimeLeft.hpp"
 #include <iomanip>
 
-int NUM_THREADS = 4;
 const int NUM_FRAMES = 1;
 const int ITERS_PER_FRAME = 100;
 const int NUM_CELLS_PER_DIM = 5;
 const double DT = 1e-3;
 const double DENSITY = 0.7;
-
 
 std::string path_join(std::initializer_list<std::string> input) {
     std::string res;
@@ -75,7 +73,6 @@ void gen_info_file() {
 
 int main(int argc, char **argv) {
     //gen_info_file();
-    omp_set_num_threads(NUM_THREADS);
 
     if (argc < 2) {
         std::cerr << "You forgot write save path" << std::endl;
