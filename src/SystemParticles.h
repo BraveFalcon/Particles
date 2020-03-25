@@ -10,9 +10,9 @@
 class SystemParticles {
 private:
     Vector3d *poses;
-    Vector3d *prev_poses;
     Vector3d *vels;
     Vector3d *forces;
+    Vector3d *prev_forces;
     Vector3d **th_forces;
     double **th_data;
     const double CUT_DIST = 2.5;

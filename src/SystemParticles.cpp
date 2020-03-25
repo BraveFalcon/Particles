@@ -6,7 +6,7 @@
 void SystemParticles::init_arrays() {
     omp_set_num_threads(NUM_THREADS);
     poses = new Vector3d[NUM_PARTICLES];
-    prev_poses = new Vector3d[NUM_PARTICLES];
+    prev_forces = new Vector3d[NUM_PARTICLES];
     vels = new Vector3d[NUM_PARTICLES];
     forces = new Vector3d[NUM_PARTICLES];
     th_forces = new Vector3d *[NUM_THREADS];
@@ -37,6 +37,7 @@ SystemParticles::SystemParticles(int num_cells_per_dim, double density) : NUM_TH
             }
         }
     }
+    update_forces();
 }
 
 SystemParticles::SystemParticles(std::string file_path, int frame, int num_particles_) : NUM_THREADS(
@@ -99,15 +100,12 @@ SystemParticles::SystemParticles(std::string file_path, int frame, int num_parti
         fprintf(stderr, "Can't read vels of %d frame in constructor", frame);
         exit(1);
     }
-    for (int i = 0; i < NUM_PARTICLES; ++i) {
-        prev_poses[i] = poses[i] - vels[i] * dt;
-    }
-
+    update_forces();
 }
 
 SystemParticles::~SystemParticles() {
     delete[] poses;
-    delete[] prev_poses;
+    delete[] prev_forces;
     delete[] vels;
     delete[] forces;
 
@@ -172,6 +170,7 @@ void SystemParticles::update_forces() {
         }
     }
     for (int i = 0; i < NUM_PARTICLES; ++i) {
+        prev_forces[i] = forces[i];
         forces[i] = Vector3d(0.0);
         for (int th = 0; th < NUM_THREADS; ++th)
             forces[i] += th_forces[th][i];
@@ -180,13 +179,11 @@ void SystemParticles::update_forces() {
 
 void SystemParticles::update_state(int num_iters) {
     for (int iter = 0; iter < num_iters; ++iter) {
+        for (int i = 0; i < NUM_PARTICLES; ++i)
+            poses[i] += vels[i] * dt + 0.5 * forces[i] * dt * dt;
         update_forces();
-        for (int i = 0; i < NUM_PARTICLES; ++i) {
-            Vector3d new_pos = 2.0 * poses[i] - prev_poses[i] + forces[i] * dt * dt;
-            vels[i] = (new_pos - prev_poses[i]) * 0.5 / dt;
-            prev_poses[i] = poses[i];
-            poses[i] = new_pos;
-        }
+        for (int i = 0; i < NUM_PARTICLES; ++i)
+            vels[i] += 0.5 * (forces[i] + prev_forces[i]) * dt;
     }
 }
 
@@ -216,10 +213,9 @@ void SystemParticles::set_vels(double temperature, unsigned seed) {
         sum_vel += vels[i];
     }
 
-    for (int i = 0; i < NUM_PARTICLES; ++i) {
+    for (int i = 0; i < NUM_PARTICLES; ++i)
         vels[i] -= sum_vel / NUM_PARTICLES;
-        prev_poses[i] = poses[i] - vels[i] * dt;
-    }
+
 }
 
 double SystemParticles::get_temperature() const {
@@ -268,14 +264,9 @@ void SystemParticles::termostat_andersen(int num_particles, double temp, int see
 
 void SystemParticles::termostat_berendsen(int num_iters, double temp, double tau) {
     for (int iter = 0; iter < num_iters; ++iter) {
-        double temperature = get_temperature();
-        update_forces();
-        for (int i = 0; i < NUM_PARTICLES; ++i) {
-            Vector3d new_pos =
-                    2.0 * poses[i] - prev_poses[i] + (forces[i] + vels[i] / tau * (temp / temperature - 1)) * dt * dt;
-            vels[i] = (new_pos - prev_poses[i]) * 0.5 / dt;
-            prev_poses[i] = poses[i];
-            poses[i] = new_pos;
-        }
+        update_state(1);
+        double lambda = sqrt(1 + dt / tau * (temp / get_temperature() - 1))
+        for (int i = 0; i < NUM_PARTICLES; ++i)
+            vels[i] *= lambda;
     }
 }
