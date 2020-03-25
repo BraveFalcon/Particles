@@ -141,7 +141,7 @@ void SystemParticles::update_forces() {
         for (int th = 0; th < NUM_THREADS; ++th)
             th_forces[th][i].set_values(0.0);
     }
-#pragma omp parallel for schedule(dynamic, 1)
+#pragma omp parallel for schedule(dynamic, 1) default(none)
     for (int i = 0; i < NUM_PARTICLES; ++i) {
         int thread = omp_get_thread_num();
         Vector3d pos1 = poses[i];
@@ -208,8 +208,7 @@ void SystemParticles::write_bin(FILE *file) const {
 
 void SystemParticles::set_vels(double temperature, unsigned seed) {
     std::normal_distribution<double> distribution(0, std::sqrt(temperature));
-    std::default_random_engine random_engine;
-    random_engine.seed(seed);
+    std::default_random_engine random_engine(seed);
 
     Vector3d sum_vel(0);
     for (int i = 0; i < NUM_PARTICLES; ++i) {
@@ -232,7 +231,7 @@ double SystemParticles::get_temperature() const {
 
 double SystemParticles::get_pressure() const {
     double res = 0;
-#pragma omp parallel for reduction(+:res) schedule(dynamic, 1)
+#pragma omp parallel for reduction(+:res) schedule(dynamic, 1) default(none)
     for (int i = 0; i < NUM_PARTICLES; ++i)
         for (int j = i + 1; j < NUM_PARTICLES; ++j)
             res += calc_virial(poses[i], poses[j]);
@@ -256,10 +255,9 @@ double SystemParticles::get_energy() const {
     return energy;
 }
 
-void SystemParticles::termostat_andersen(int num_particles, double temp) {
+void SystemParticles::termostat_andersen(int num_particles, double temp, int seed) {
     std::normal_distribution<double> distribution(0, std::sqrt(temp));
-    std::default_random_engine random_engine;
-    random_engine.seed(42);
+    std::default_random_engine random_engine(seed);
 
     for (int i = 0; i < num_particles; ++i) {
         int particle = rand() % NUM_PARTICLES;

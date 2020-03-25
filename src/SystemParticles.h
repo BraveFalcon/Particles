@@ -41,7 +41,7 @@ public:
 
     void termostat_berendsen(int num_iters, double temp, double tau);
 
-    void termostat_andersen(int num_particles, double temp);
+    void termostat_andersen(int num_particles, double temp, int seed = 42);
 
     void init_bin(FILE *file, int num_frames, double time_per_frame) const;
 

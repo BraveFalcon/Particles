@@ -54,7 +54,7 @@ public:
         z = z_;
     }
 
-    bool is_zero() const {
+    [[nodiscard]] bool is_zero() const {
         return (x == 0.0 && y == 0.0 && z == 0.0);
     }
 
@@ -114,11 +114,11 @@ public:
         return Vector3(x - other.x, y - other.y, z - other.z);
     }
 
-    double abs() const {
+    [[nodiscard]] double abs() const {
         return std::sqrt(x * x + y * y + z * z);
     }
 
-    double sqr() const {
+    [[nodiscard]] double sqr() const {
         return x * x + y * y + z * z;
     }
 };

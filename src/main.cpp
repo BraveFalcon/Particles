@@ -1,7 +1,6 @@
 #include <iostream>
 #include <chrono>
 #include <string>
-#include <omp.h>
 #include "SystemParticles.h"
 #include "TimeLeft.hpp"
 #include <iomanip>
@@ -24,7 +23,7 @@ std::string path_join(std::initializer_list<std::string> input) {
     return res;
 }
 
-std::string path_get_head(std::string path) {
+std::string path_get_head(const std::string &path) {
     std::string sep = "/";
 #ifdef _WIN64
     sep = "\\";
