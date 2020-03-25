@@ -13,10 +13,9 @@ from python_scripts import CLib
 def get_figure(exp, cut_dist=-1.0):
     if cut_dist < 0:
         cut_dist = exp.cell_size / 2
-    num_bins = int(np.sqrt(
+    num_bins = min(1000, int(np.sqrt(
         exp.num_frames * exp.num_particles * (4 / 3 * np.pi * exp.num_particles * (cut_dist / exp.cell_size) ** 3 - 1)
-    )
-    )
+    )))
 
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     fig.subplots_adjust(bottom=0.1, left=0.1, right=0.95, top=0.92)
@@ -30,11 +29,12 @@ def get_figure(exp, cut_dist=-1.0):
 
     bins, hs = CLib.radial_distr(exp, cut_dist, num_bins)
 
-    ax.bar(bins, hs, align='edge', width=cut_dist / num_bins)
+    ax.plot(bins, hs, 'b', label='MD simulation')
     xs = np.linspace(1e-10, cut_dist, 1000)
     approx_line = np.exp(-4 * (xs ** -12 - xs ** -6) / exp.temperature)
-    ax.plot(xs, approx_line, 'r--', lw=1.2)
+    # ax.plot(xs, approx_line, 'r--', lw=1.2, label='Boltzmann distribution')
 
+    ax.legend()
     return fig
 
 

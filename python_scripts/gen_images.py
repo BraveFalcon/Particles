@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 
 sys.path.append(path.split(path.split(path.abspath(__file__))[0])[0])
-from python_scripts import energy, vels, momentum, temperature, diffusion, radial_distr
+from python_scripts import energy, vels, momentum, temperature, diffusion, radial_distr, energies, pressure
 from python_scripts.experiment import Experiment
 
 
@@ -26,6 +26,14 @@ def gen_images(experiment, images_path):
 
     fig = temperature.get_figure(experiment)
     plt.savefig(path.join(images_path, 'temperature.' + image_format), dpi=dpi)
+    plt.close(fig)
+
+    fig = pressure.get_figure(experiment)
+    plt.savefig(path.join(images_path, 'pressure.' + image_format), dpi=dpi)
+    plt.close(fig)
+
+    fig = energies.get_figure(experiment)
+    plt.savefig(path.join(images_path, 'energies.' + image_format), dpi=dpi)
     plt.close(fig)
 
     fig = diffusion.get_figure(experiment)

@@ -30,14 +30,15 @@ void radial_distr(
         double *res,
         int num_bins,
         double max_r) {
-    unsigned long long *ns = malloc(num_bins * sizeof(unsigned long long));
+    omp_set_num_threads(omp_get_num_procs());
+    unsigned int ns[omp_get_max_threads()][num_bins];
     if (ns == NULL) {
         fprintf(stderr, "Malloc failed in radial_distr c-func\n");
         exit(1);
     }
     for (int i = 0; i < num_bins; ++i)
-        ns[i] = 0;
-    omp_set_num_threads(omp_get_num_procs());
+        for (int thid = 0; thid < omp_get_max_threads(); ++thid)
+            ns[thid][i] = 0;
 #pragma omp parallel for
     for (int frame = 0; frame < num_frames; ++frame) {
         for (int particle = 0; particle < num_particles; ++particle) {
@@ -53,16 +54,19 @@ void radial_distr(
                 double r = sqrt(r_sqr);
                 if (r < max_r) {
                     unsigned bin = (unsigned) (r / max_r * num_bins);
-#pragma omp atomic
-                    ++ns[bin];
+                    ++ns[omp_get_thread_num()][bin];
                 }
             }
         }
     }
     double concentration = num_particles / (pow(cell_size, 3));
+    for (int i = 0; i < num_bins; ++i)
+        for (int thid = 1; thid < omp_get_max_threads(); ++thid)
+            ns[0][i] += ns[thid][i];
     for (int bin = 0; bin < num_bins; ++bin) {
-        res[bin] = 2 * ns[bin] / (4 * M_PI * pow(max_r / num_bins, 3) * (bin * bin + bin + 1.0 / 3)) / num_particles /
-                   num_frames / concentration;
+        res[bin] =
+                2 * ns[0][bin] / (4 * M_PI * pow(max_r / num_bins, 3) * (bin * bin + bin + 1.0 / 3)) / num_particles /
+                num_frames / concentration;
     }
 }
 
@@ -70,7 +74,8 @@ void parse_data_file(
         const char *file_path,
         double *poses,
         double *vels,
-        double *energies) {
+        double *energies,
+        double *pressures) {
     FILE *file = fopen(file_path, "rb");
     if (!file) {
         fprintf(stderr, "Can't open file in parse_data_file c-func");
@@ -95,12 +100,16 @@ void parse_data_file(
             fprintf(stderr, "Can't read energy of %d frame in parse_data_file c-func", frame);
             exit(1);
         }
+        if (!fread(pressures + frame, sizeof(double), 1, file)) {
+            fprintf(stderr, "Can't read pressure of %d frame in parse_data_file c-func", frame);
+            exit(1);
+        }
         if (fread(poses + frame * 3 * num_particles, sizeof(double), 3 * num_particles, file) != 3 * num_particles) {
             fprintf(stderr, "Can't read poses of %d frame in parse_data_file c-func", frame);
             exit(1);
         }
         if (fread(vels + frame * 3 * num_particles, sizeof(double), 3 * num_particles, file) != 3 * num_particles) {
-            fprintf(stderr, "Can't read poses of %d frame in parse_data_file c-func", frame);
+            fprintf(stderr, "Can't read vels of %d frame in parse_data_file c-func", frame);
             exit(1);
         }
     }
