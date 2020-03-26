@@ -41,6 +41,8 @@ public:
 
     void termostat_berendsen(int num_iters, double temp, double tau);
 
+    void npt_berendsen(double press, double temp, double tau, double beta = 1.0);
+
     void termostat_andersen(int num_particles, double temp, int seed = 42);
 
     void init_bin(FILE *file, int num_frames, double time_per_frame) const;
@@ -54,5 +56,7 @@ public:
     [[nodiscard]] double get_pressure() const;
 
     void set_vels(double temperature, unsigned seed = 42);
+
+    double calc_min_dist();
 };
 

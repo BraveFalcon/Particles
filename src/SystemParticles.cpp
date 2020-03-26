@@ -32,8 +32,8 @@ SystemParticles::SystemParticles(int num_cells_per_dim, double density) : NUM_TH
         for (int y = 0; y < 2 * particles_per_dim && particle < NUM_PARTICLES; ++y) {
             for (int x = 0; x < particles_per_dim && particle < NUM_PARTICLES; ++x) {
                 poses[particle++] =
-                        Vector3d(dist * 0.25) +
-                        Vector3d(dist * x + ((z - y) % 2) * dist / 2, dist / 2 * y, dist / 2 * z);
+                        Vector3d(dist * 0.25) - Vector3d(CELL_SIZE / 2) +
+                        Vector3d(dist * x + (abs(z - y) % 2) * dist / 2, dist / 2 * y, dist / 2 * z);
             }
         }
     }
@@ -265,8 +265,51 @@ void SystemParticles::termostat_andersen(int num_particles, double temp, int see
 void SystemParticles::termostat_berendsen(int num_iters, double temp, double tau) {
     for (int iter = 0; iter < num_iters; ++iter) {
         update_state(1);
-        double lambda = sqrt(1 + dt / tau * (temp / get_temperature() - 1))
+        double lambda = sqrt(1 + dt / tau * (temp / get_temperature() - 1));
         for (int i = 0; i < NUM_PARTICLES; ++i)
             vels[i] *= lambda;
+    }
+}
+
+double SystemParticles::calc_min_dist() {
+    double res = CELL_SIZE;
+    for (int i = 0; i < NUM_PARTICLES; ++i)
+        for (int j = i + 1; j < NUM_PARTICLES; ++j)
+            res = std::min(res, (poses[i] - poses[j]).sqr());
+    return sqrt(res);
+}
+
+void SystemParticles::npt_berendsen(double press, double temp, double tau, double min_beta) {
+    double beta = min_beta;
+    double time = 0;
+    double prev_vol, prev_press;
+    prev_vol = pow(CELL_SIZE, 3);
+    prev_press = get_pressure();
+    for (int iter = 0; iter < 10 * tau / dt; ++iter) {
+        if (time > tau) {
+            time = 0;
+            double cur_press, cur_vol;
+            cur_vol = pow(CELL_SIZE, 3);
+            cur_press = get_pressure();
+            beta = std::max(min_beta, -(cur_vol - prev_vol) / (cur_press - prev_press) * 2 / (cur_vol + prev_vol));
+            prev_vol = cur_vol;
+            prev_press = cur_press;
+            if (get_temperature() > 10) {
+                fprintf(stderr, "Heat boom in berendsen, reduce min_beta\n");
+                exit(-1);
+            }
+        }
+        time += dt;
+        update_state(1);
+        double lambda = sqrt(1 + dt / tau * (temp / get_temperature() - 1));
+        double cur_pressure = get_pressure();
+        double mu = pow(1 - beta * dt / tau * (press - cur_pressure), 1.0 / 3);
+        //printf("%f\t%f\t%f\t%f\n", get_temperature(), cur_pressure, CELL_SIZE, beta);
+        for (int i = 0; i < NUM_PARTICLES; ++i) {
+            poses[i] += (mu - 1) * calc_near_r(Vector3d(0), poses[i]);
+            vels[i] *= lambda;
+        }
+        CELL_SIZE *= mu;
+        update_forces();
     }
 }
