@@ -6,10 +6,10 @@
 #include <iomanip>
 
 const int NUM_FRAMES = 100;
-const int ITERS_PER_FRAME = 100;
+const int ITERS_PER_FRAME = 10;
 const int NUM_CELLS_PER_DIM = 5;
 const double DT = 1e-3;
-const double DENSITY = 0.7;
+const double DENSITY = 0.9;
 
 std::string path_join(std::initializer_list<std::string> input) {
     std::string res;
@@ -91,9 +91,10 @@ int main(int argc, char **argv) {
     //        "/home/brave_falcon/CLionProjects/Particles_git/experiments/4sem/pressure/1.0/data.bin", 0);
     SystemParticles system_particles(NUM_CELLS_PER_DIM, DENSITY);
     system_particles.dt = DT;
-    system_particles.set_vels(2.8);
-    system_particles.update_state(3.0 / DT);
-    system_particles.npt_berendsen(3.0, 1.5, 0.25, 0.1);
+    system_particles.set_vels(1.0);
+    system_particles.update_state(1.5 / DT);
+    system_particles.npt_berendsen(0.5, 1, 0.25, 1);
+    printf("%f", 500 / pow(system_particles.CELL_SIZE, 3));
     system_particles.init_bin(out_data_file, NUM_FRAMES, DT * ITERS_PER_FRAME);
 
     std::chrono::high_resolution_clock::time_point start, end;

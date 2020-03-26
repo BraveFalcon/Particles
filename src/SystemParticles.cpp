@@ -2,6 +2,8 @@
 
 //TODO::Go on float in all operation, except accumulation
 //TODO::Linked list
+//TODO::Go to sdtl vectors
+
 
 void SystemParticles::init_arrays() {
     omp_set_num_threads(NUM_THREADS);
@@ -251,6 +253,12 @@ double SystemParticles::get_energy() const {
     return energy;
 }
 
+double SystemParticles::get_free_time() const {
+    double temp = get_temperature();
+    double sigma = M_PI * pow(2.0 / 3.0 / temp * (sqrt(1 + 3 * temp) - 1), 1.0 / 3);
+    return pow(CELL_SIZE, 3) / sqrt(6 * temp) / NUM_PARTICLES / sigma;
+}
+
 void SystemParticles::termostat_andersen(int num_particles, double temp, int seed) {
     std::normal_distribution<double> distribution(0, std::sqrt(temp));
     std::default_random_engine random_engine(seed);
@@ -269,14 +277,6 @@ void SystemParticles::termostat_berendsen(int num_iters, double temp, double tau
         for (int i = 0; i < NUM_PARTICLES; ++i)
             vels[i] *= lambda;
     }
-}
-
-double SystemParticles::calc_min_dist() {
-    double res = CELL_SIZE;
-    for (int i = 0; i < NUM_PARTICLES; ++i)
-        for (int j = i + 1; j < NUM_PARTICLES; ++j)
-            res = std::min(res, (poses[i] - poses[j]).sqr());
-    return sqrt(res);
 }
 
 void SystemParticles::npt_berendsen(double press, double temp, double tau, double min_beta) {

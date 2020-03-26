@@ -6,7 +6,6 @@
 #include <omp.h>
 
 
-//TODO::Go to sdtl vectors
 class SystemParticles {
 private:
     Vector3d *poses;
@@ -55,8 +54,8 @@ public:
 
     [[nodiscard]] double get_pressure() const;
 
-    void set_vels(double temperature, unsigned seed = 42);
+    [[nodiscard]] double get_free_time() const;
 
-    double calc_min_dist();
+    void set_vels(double temperature, unsigned seed = 42);
 };
 
