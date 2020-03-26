@@ -20,7 +20,7 @@ private:
     const double CUT_DIST = 2.5;
     const int NUM_THREADS;
 
-    [[nodiscard]] Vector3d calc_near_r(const Vector3d &pos1, const Vector3d &pos2) const;
+    [[nodiscard]] Vector3d get_near_r(const Vector3d &pos1, const Vector3d &pos2) const;
 
     [[nodiscard]] double calc_virial(const Vector3d &pos1, const Vector3d &pos2) const;
 
@@ -49,11 +49,11 @@ public:
 
     void termostat_andersen(int num_particles, double temp, int seed = 42);
 
-    void init_bin(FILE *file, int num_frames, double time_per_frame) const;
+    void init_bin_file(FILE *file, int num_frames, double time_per_frame) const;
 
-    void write_bin(FILE *file) const;
+    void write_bin_file(FILE *file) const;
 
-    [[nodiscard]] double get_energy() const;
+    [[nodiscard]] double calc_energy() const;
 
     [[nodiscard]] double get_temperature() const;
 

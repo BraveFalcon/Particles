@@ -119,7 +119,7 @@ SystemParticles::~SystemParticles() {
     delete[] th_data;
 }
 
-Vector3d SystemParticles::calc_near_r(const Vector3d &pos1, const Vector3d &pos2) const {
+Vector3d SystemParticles::get_near_r(const Vector3d &pos1, const Vector3d &pos2) const {
     Vector3d res = pos2 - pos1;
     res.x -= round(res.x / CELL_SIZE) * CELL_SIZE;
     res.y -= round(res.y / CELL_SIZE) * CELL_SIZE;
@@ -128,7 +128,7 @@ Vector3d SystemParticles::calc_near_r(const Vector3d &pos1, const Vector3d &pos2
 }
 
 double SystemParticles::calc_virial(const Vector3d &pos1, const Vector3d &pos2) const {
-    Vector3d r_near = calc_near_r(pos1, pos2);
+    Vector3d r_near = get_near_r(pos1, pos2);
     double dist_sqr = r_near.sqr();
     if (dist_sqr < CUT_DIST * CUT_DIST)
         return 24 * (2 * pow(dist_sqr, -6) - pow(dist_sqr, -3));
@@ -189,15 +189,15 @@ void SystemParticles::update_state(int num_iters) {
     }
 }
 
-void SystemParticles::init_bin(FILE *file, int num_frames, double time_per_frame) const {
+void SystemParticles::init_bin_file(FILE *file, int num_frames, double time_per_frame) const {
     fwrite(&num_frames, sizeof(int), 1, file);
     fwrite(&NUM_PARTICLES, sizeof(int), 1, file);
     fwrite(&time_per_frame, sizeof(double), 1, file);
     fwrite(&CELL_SIZE, sizeof(double), 1, file);
 }
 
-void SystemParticles::write_bin(FILE *file) const {
-    double energy = get_energy();
+void SystemParticles::write_bin_file(FILE *file) const {
+    double energy = calc_energy();
     double pressure = get_pressure();
     fwrite(&energy, sizeof(double), 1, file);
     fwrite(&pressure, sizeof(double), 1, file);
@@ -238,13 +238,13 @@ double SystemParticles::get_pressure() const {
     return res;
 }
 
-double SystemParticles::get_energy() const {
+double SystemParticles::calc_energy() const {
     double energy = 0;
 #pragma omp parallel for reduction(+:energy) default(none)
     for (int i = 0; i < NUM_PARTICLES; ++i) {
         energy += 0.5 * vels[i].sqr();
         for (int j = i + 1; j < NUM_PARTICLES; ++j) {
-            double dist_sqr = calc_near_r(poses[i], poses[j]).sqr();
+            double dist_sqr = get_near_r(poses[i], poses[j]).sqr();
             if (dist_sqr < CUT_DIST * CUT_DIST)
                 energy +=
                         4 * (pow(dist_sqr, -6) - pow(dist_sqr, -3)) - 4 * (pow(CUT_DIST, -12) - pow(CUT_DIST, -6));
@@ -267,7 +267,7 @@ double SystemParticles::calc_rel_std_energy(double DT, double time) {
     int iters = 50;
     for (int i = 0; i < iters; ++i) {
         update_state(ceil(time / dt / iters));
-        double energy = get_energy();
+        double energy = calc_energy();
         mean_energy += energy;
         mean_sq_energy += energy * energy;
     }
@@ -370,7 +370,7 @@ void SystemParticles::npt_berendsen(double press, double temp, double tau, doubl
         double mu = pow(1 - beta * dt / tau * (press - cur_pressure), 1.0 / 3);
         //printf("%f\t%f\t%f\t%f\n", get_temperature(), cur_pressure, CELL_SIZE, beta);
         for (int i = 0; i < NUM_PARTICLES; ++i) {
-            poses[i] += (mu - 1) * calc_near_r(Vector3d(0), poses[i]);
+            poses[i] += (mu - 1) * get_near_r(Vector3d(0), poses[i]);
             vels[i] *= lambda;
         }
         CELL_SIZE *= mu;

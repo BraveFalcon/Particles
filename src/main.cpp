@@ -35,7 +35,7 @@ std::string path_get_head(const std::string &path) {
 
 void print_info(int frame, const SystemParticles &systemParticles) {
     static TimeLeft timeLeft;
-    static double init_energy = systemParticles.get_energy();
+    static double init_energy = systemParticles.calc_energy();
     double frac_done = 1.0 * frame / NUM_FRAMES;
 #ifdef _WIN64
     system("cls");
@@ -44,7 +44,7 @@ void print_info(int frame, const SystemParticles &systemParticles) {
 #endif
     printf("Complete          %.2f%%\n", frac_done * 100);
     printf("Left              %s\n", timeLeft(frac_done).c_str());
-    printf("Energy deviation  %.0e\n", std::abs(1 - systemParticles.get_energy() / init_energy));
+    printf("Energy deviation  %.0e\n", std::abs(1 - systemParticles.calc_energy() / init_energy));
     printf("Temperature       %.4f\n", systemParticles.get_temperature());
     printf("Pressure          %.3f\n", systemParticles.get_pressure());
     std::cout.flush();
@@ -101,17 +101,17 @@ int main(int argc, char **argv) {
     printf("NVE... (%f)\n", system_particles.get_free_time());
     system_particles.guess_dt(system_particles.get_free_time() * 2);
     const int ITERS_PER_FRAME = ceil(system_particles.get_free_time() / 10 / system_particles.dt);
-    system_particles.init_bin(out_data_file, NUM_FRAMES, system_particles.dt * ITERS_PER_FRAME);
+    system_particles.init_bin_file(out_data_file, NUM_FRAMES, system_particles.dt * ITERS_PER_FRAME);
 
     std::chrono::high_resolution_clock::time_point start, end;
     start = std::chrono::high_resolution_clock::now();
     for (int frame = 0; frame < NUM_FRAMES; ++frame) {
         print_info(frame, system_particles);
-        system_particles.write_bin(out_data_file);
+        system_particles.write_bin_file(out_data_file);
         system_particles.update_state(ITERS_PER_FRAME);
     }
     print_info(NUM_FRAMES, system_particles);
-    system_particles.write_bin(out_data_file);
+    system_particles.write_bin_file(out_data_file);
     end = std::chrono::high_resolution_clock::now();
     auto calc_time = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
     printf("%.3e", calc_time);
