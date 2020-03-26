@@ -259,6 +259,70 @@ double SystemParticles::get_free_time() const {
     return pow(CELL_SIZE, 3) / sqrt(6 * temp) / NUM_PARTICLES / sigma;
 }
 
+double SystemParticles::calc_rel_std_energy(double DT, double time) {
+    double old_dt = dt;
+    dt = DT;
+    double mean_energy = 0;
+    double mean_sq_energy = 0;
+    int iters = 50;
+    for (int i = 0; i < iters; ++i) {
+        update_state(ceil(time / dt / iters));
+        double energy = get_energy();
+        mean_energy += energy;
+        mean_sq_energy += energy * energy;
+    }
+    mean_energy /= iters;
+    mean_sq_energy /= iters;
+    dt = old_dt;
+    return sqrt(mean_sq_energy - mean_energy * mean_energy) / std::abs(mean_energy);
+}
+
+void SystemParticles::guess_dt(double iter_time) {
+    double min_fluct = 0.5e-5;
+    double max_fluct = 5e-5;
+    double mean_fluct = 0.5 * (min_fluct + max_fluct);
+    double dt_l, dt_r;
+    double fluct_l, fluct_r;
+    dt_l = dt;
+    fluct_l = calc_rel_std_energy(dt_l, iter_time);
+    if (fluct_l > max_fluct) {
+        dt_r = dt_l;
+        fluct_r = fluct_l;
+        dt_l = dt_r / 5;
+        fluct_l = calc_rel_std_energy(dt_l, iter_time);
+    } else if (fluct_l < min_fluct) {
+        dt_r = dt_l * 5;
+        fluct_r = calc_rel_std_energy(dt_r, iter_time);
+    } else return;
+    if (fluct_r < max_fluct && fluct_r > min_fluct) {
+        dt = dt_r;
+        return;
+    }
+    double dt_m, fluct_m;
+    do {
+        dt_m = dt_l + (dt_r - dt_l) * (mean_fluct - fluct_l) / (fluct_r - fluct_l);
+        fluct_m = calc_rel_std_energy(dt_m, iter_time);
+        if (dt_m > dt_r) {
+            dt_l = dt_r;
+            fluct_l = fluct_r;
+            dt_r = dt_m;
+            fluct_r = fluct_m;
+        } else if (dt_m < dt_l) {
+            dt_r = dt_l;
+            fluct_r = fluct_l;
+            dt_l = dt_m;
+            fluct_l = fluct_m;
+        } else if (fluct_m > mean_fluct) {
+            dt_r = dt_m;
+            fluct_r = fluct_m;
+        } else {
+            dt_l = dt_m;
+            fluct_l = dt_m;
+        }
+    } while (fluct_m < min_fluct || fluct_m > max_fluct);
+    dt = dt_m;
+}
+
 void SystemParticles::termostat_andersen(int num_particles, double temp, int seed) {
     std::normal_distribution<double> distribution(0, std::sqrt(temp));
     std::default_random_engine random_engine(seed);

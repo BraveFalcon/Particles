@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Vector3.hpp"
+#include <vector>
+#include <algorithm>
+#include <utility>
 #include <random>
 #include <cstdio>
 #include <omp.h>
@@ -20,6 +23,8 @@ private:
     [[nodiscard]] Vector3d calc_near_r(const Vector3d &pos1, const Vector3d &pos2) const;
 
     [[nodiscard]] double calc_virial(const Vector3d &pos1, const Vector3d &pos2) const;
+
+    [[nodiscard]] double calc_rel_std_energy(double DT, double time);
 
     void update_forces();
 
@@ -55,6 +60,8 @@ public:
     [[nodiscard]] double get_pressure() const;
 
     [[nodiscard]] double get_free_time() const;
+
+    void guess_dt(double iter_time);
 
     void set_vels(double temperature, unsigned seed = 42);
 };
