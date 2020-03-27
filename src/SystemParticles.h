@@ -8,6 +8,7 @@
 #include <random>
 #include <cstdio>
 #include <omp.h>
+#include "Value.hpp"
 
 
 class SystemParticles {
@@ -51,7 +52,9 @@ public:
 
     void termostat_berendsen(int num_iters, double temp, double tau);
 
-    void npt_berendsen(double press, double temp, double tau, double beta = 1.0);
+    void npt_berendsen(double press, double temp);
+
+    void npt_berendsen(unsigned num_iters, double press, double temp, double tau, double beta);
 
     void termostat_andersen(int num_particles, double temp, int seed = 42);
 

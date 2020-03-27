@@ -264,19 +264,14 @@ double SystemParticles::get_free_time() const {
 double SystemParticles::calc_rel_std_energy(double DT, double time) {
     double old_dt = dt;
     dt = DT;
-    double mean_energy = 0;
-    double mean_sq_energy = 0;
+    Value energy;
     int iters = 50;
     for (int i = 0; i < iters; ++i) {
         update_state(ceil(time / dt / iters));
-        double energy = calc_energy();
-        mean_energy += energy;
-        mean_sq_energy += energy * energy;
+        energy.update(calc_energy());
     }
-    mean_energy /= iters;
-    mean_sq_energy /= iters;
     dt = old_dt;
-    return sqrt(mean_sq_energy - mean_energy * mean_energy) / std::abs(mean_energy);
+    return energy.std() / std::abs(energy.mean());
 }
 
 void SystemParticles::guess_dt(double iter_time) {
@@ -345,36 +340,25 @@ void SystemParticles::termostat_berendsen(int num_iters, double temp, double tau
     }
 }
 
-void SystemParticles::npt_berendsen(double press, double temp, double tau, double min_beta) {
-    double beta = min_beta;
-    double time = 0;
-    double prev_vol, prev_press;
-    prev_vol = pow(CELL_SIZE, 3);
-    prev_press = get_pressure();
-    for (int iter = 0; iter < 10 * tau / dt; ++iter) {
-        if (time > tau) {
-            print_info(1.0 * iter / num_iters);
-            time = 0;
-            double cur_press, cur_vol;
-            cur_vol = pow(CELL_SIZE, 3);
-            cur_press = get_pressure();
-            beta = std::max(min_beta, -(cur_vol - prev_vol) / (cur_press - prev_press) * 2 / (cur_vol + prev_vol));
-            //printf("%f\n", beta);
-            prev_vol = cur_vol;
-            prev_press = cur_press;
-            if (get_temperature() > 10) {
-                fprintf(stderr, "Heat boom in berendsen, reduce min_beta\n");
-                exit(-1);
-            }
-        }
-        time += dt;
+void SystemParticles::npt_berendsen(unsigned num_iters, double press, double temp, double tau, double beta) {
+    double min_mu = 0.8, max_mu = 1.25;
+    for (unsigned iter = 0; iter < num_iters; ++iter) {
         update_state(1);
-        double lambda = sqrt(1 + dt / tau * (temp / get_temperature() - 1));
-        double cur_pressure = get_pressure();
-        double mu = pow(1 - beta * dt / tau * (press - cur_pressure), 1.0 / 3);
-        //printf("%f\t%f\t%f\t%f\n", get_temperature(), cur_pressure, CELL_SIZE, beta);
+
+        if (get_temperature() > 10) {
+            fprintf(stderr, "Heat boom in berendsen\n");
+            set_vels(temp);
+        }
+
+        double lambda = sqrt(1 + 2 * dt / tau * (temp / get_temperature() - 1));
+        double mu = pow(1 - beta * dt / tau * (press - get_pressure()), 1.0 / 3);
+
+        if (mu < min_mu) mu = min_mu;
+        else if (mu > max_mu) mu = max_mu;
+
         for (int i = 0; i < NUM_PARTICLES; ++i) {
-            poses[i] += (mu - 1) * get_near_r(Vector3d(0), poses[i]);
+            poses[i] = get_near_r(Vector3d(0.0), poses[i]);
+            poses[i] *= mu;
             vels[i] *= lambda;
         }
         CELL_SIZE *= mu;
@@ -382,13 +366,68 @@ void SystemParticles::npt_berendsen(double press, double temp, double tau, doubl
     }
 }
 
+void SystemParticles::npt_berendsen(double press, double temp) {
+    class Beta {
+    private:
+        double prev_vol, prev_press;
+        double beta;
+        const double min_beta = 0.01, max_beta = 100;
+        const double init_beta = 1;
+    public:
+        Beta(double cell_size, double pressure) {
+            prev_vol = pow(cell_size, 3);
+            prev_press = pressure;
+            beta = init_beta;
+        }
+
+        void update(double cell_size, double pressure) {
+            double volume = pow(cell_size, 3);
+            beta = -(volume - prev_vol) / (pressure - prev_press) * 2 / (volume + prev_vol);
+            if (beta < 0) beta = init_beta;
+            else if (beta < min_beta) beta = min_beta;
+            else if (beta > max_beta) beta = max_beta;
+
+            prev_vol = volume;
+            prev_press = pressure;
+        }
+
+        double operator*(double x) { return beta * x; };
+    };
+
+    print_info(0.0);
+    Beta beta(CELL_SIZE, get_pressure());
+    Value cur_temp, cur_press;
+    double prev_temp, prev_press;
+    do {
+        prev_temp = cur_temp.mean();
+        prev_press = cur_press.mean();
+        cur_temp.reset();
+        cur_press.reset();
+        double tau = get_free_time();
+        int num_iters = 10;
+        for (int iter = 0; iter < num_iters; ++iter) {
+            npt_berendsen(tau / dt / num_iters, press, temp, tau, beta * 1.0);
+            cur_temp.update(get_temperature());
+            cur_press.update(get_pressure());
+        }
+        beta.update(CELL_SIZE, get_pressure());
+        printf("  %.2f\t%.5f\t%.5f\n", beta * 1.0, cur_temp.error_mean(), cur_press.error_mean());
+        print_info(0.0);
+    } while (std::abs(press - cur_press.mean()) > cur_press.error_mean()
+             || cur_press.error_mean() / cur_press.mean() > 0.05
+             || std::abs(temp - cur_temp.mean()) > cur_temp.error_mean()
+             || cur_temp.error_mean() / cur_temp.mean() > 0.05
+            );
+
+}
+
 //TODO::запись лог файла примерно как в lammps
 void SystemParticles::print_info(double frac_done) {
     if (print_info_iter == 0 || print_info_iter > 9) {
-        printf("Comp      Left     E_dev      Temp     Press    Dens\n");
+        printf("Comp, %%   Left     E_dev      Temp     Press    Dens\n");
         print_info_iter = 0;
     }
-    printf("%.2f%%    %-9s%.1e    %.3f    %-9.3f%.3f\n", frac_done * 100, timeLeft(frac_done).c_str(),
+    printf("%-10.0f%-9s%.1e    %.3f    %-9.3f%.3f\n", frac_done * 100, timeLeft(frac_done).c_str(),
            std::abs(1 - calc_energy() / init_energy), get_temperature(), get_pressure(),
            NUM_PARTICLES / pow(CELL_SIZE, 3));
     //std::cout.flush();

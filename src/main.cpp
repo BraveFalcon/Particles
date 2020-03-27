@@ -74,17 +74,23 @@ int main(int argc, char **argv) {
     SystemParticles system_particles(NUM_CELLS_PER_DIM, DENSITY);
     system_particles.set_vels(1.0, 56);
 
-    printf("Preparing... (free time: %f)\n", system_particles.get_free_time());
+    printf("Relaxation... (free time: %f)\n", system_particles.get_free_time());
     system_particles.update_state(ceil(system_particles.get_free_time() * 5 / system_particles.dt));
     std::cout << "Calculation time " << system_particles.reset_info_data() << "\n\n";
 
-    printf("NPT... (free time: %f)\n", system_particles.get_free_time());
+    printf("Selecting dt... (free time: %f)\n", system_particles.get_free_time());
     system_particles.guess_dt(system_particles.get_free_time() * 2);
-    system_particles.npt_berendsen(0.01, 1, system_particles.get_free_time() * 4, 0.01);
+    printf("DT: %.2e\n", system_particles.dt);
+
+    printf("NPT... (free time: %f)\n", system_particles.get_free_time());
+    system_particles.npt_berendsen(0.01, 1.5);
     std::cout << "Calculation time " << system_particles.reset_info_data() << "\n\n";
 
-    printf("NVE... (free time: %f)\n", system_particles.get_free_time());
+    printf("Selecting dt... (free time: %f)\n", system_particles.get_free_time());
+    printf("DT: %.2e\n", system_particles.dt);
     system_particles.guess_dt(system_particles.get_free_time() * 2);
+
+    printf("NVE... (free time: %f)\n", system_particles.get_free_time());
     const int ITERS_PER_FRAME = ceil(system_particles.get_free_time() / 10 / system_particles.dt);
     system_particles.init_bin_file(out_data_file, NUM_FRAMES, system_particles.dt * ITERS_PER_FRAME);
 
