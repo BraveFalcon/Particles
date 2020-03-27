@@ -19,18 +19,15 @@ private:
     Vector3d *prev_forces;
     Vector3d **th_forces;
     double **th_data;
+    double virial;
+    double pot_energy;
     const double CUT_DIST = 2.5;
-    const int NUM_THREADS;
-    \
+    const int NUM_THREADS = 4;
 
-    TimeLeft timeLeft;
-    double init_energy;
-    int print_info_iter = 0;
+
 
     [[nodiscard]] Vector3d get_near_r(const Vector3d &pos1, const Vector3d &pos2) const;
-
-    [[nodiscard]] double calc_virial(const Vector3d &pos1, const Vector3d &pos2) const;
-
+    
     [[nodiscard]] double calc_rel_std_energy(double DT, double time);
 
     void update_forces();
@@ -38,7 +35,7 @@ private:
 public:
     double dt = 1e-3;
     const int NUM_PARTICLES;
-    double CELL_SIZE;
+    double cell_size;
 
     void init_arrays();
 
@@ -62,7 +59,7 @@ public:
 
     void write_bin_file(FILE *file) const;
 
-    [[nodiscard]] double calc_energy() const;
+    [[nodiscard]] double get_energy() const;
 
     [[nodiscard]] double get_temperature() const;
 
@@ -74,8 +71,7 @@ public:
 
     void set_vels(double temperature, unsigned seed = 42);
 
-    void print_info(double frac_done);
+    std::string print_info(double frac_done) const;
 
-    std::string reset_info_data();
 };
 

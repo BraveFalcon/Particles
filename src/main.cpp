@@ -7,8 +7,8 @@
 
 const int NUM_FRAMES = 100;
 //const int ITERS_PER_FRAME = 10;
-const int NUM_CELLS_PER_DIM = 7;
-const double DENSITY = 0.9;
+const int NUM_CELLS_PER_DIM = 5;
+const double DENSITY = 0.24;
 
 std::string path_join(std::initializer_list<std::string> input) {
     std::string res;
@@ -72,19 +72,24 @@ int main(int argc, char **argv) {
     //SystemParticles system_particles(
     //        "/home/brave_falcon/CLionProjects/Particles_git/experiments/4sem/pressure/1.0/data.bin", 0);
     SystemParticles system_particles(NUM_CELLS_PER_DIM, DENSITY);
-    system_particles.set_vels(1.0, 56);
+    system_particles.set_vels(1.5, 56);
+    system_particles.dt = 3e-3;
 
     printf("Relaxation... (free time: %f)\n", system_particles.get_free_time());
-    system_particles.update_state(ceil(system_particles.get_free_time() * 5 / system_particles.dt));
-    std::cout << "Calculation time " << system_particles.reset_info_data() << "\n\n";
+    int num_iters = 3;
+    for (int iter = 0; iter < num_iters; ++iter) {
+        system_particles.print_info(1.0 * iter / num_iters);
+        system_particles.update_state(ceil(system_particles.get_free_time() * 5 / system_particles.dt));
+    }
+    std::cout << "Calculation time " << system_particles.print_info(-1) << "\n\n";
 
     printf("Selecting dt... (free time: %f)\n", system_particles.get_free_time());
     system_particles.guess_dt(system_particles.get_free_time() * 2);
-    printf("DT: %.2e\n", system_particles.dt);
+    printf("DT: %.2e\n\n", system_particles.dt);
 
     printf("NPT... (free time: %f)\n", system_particles.get_free_time());
     system_particles.npt_berendsen(3, 2.0);
-    std::cout << "Calculation time " << system_particles.reset_info_data() << "\n\n";
+    std::cout << "Calculation time " << system_particles.print_info(-1) << "\n\n";
 
     printf("Selecting dt... (free time: %f)\n", system_particles.get_free_time());
     printf("DT: %.2e\n", system_particles.dt);
@@ -100,7 +105,7 @@ int main(int argc, char **argv) {
         system_particles.update_state(ITERS_PER_FRAME);
     }
 
-    std::cout << "\nCalculation time  " << system_particles.reset_info_data() << "\n\n";
+    std::cout << "\nCalculation time  " << system_particles.print_info(-1) << "\n\n";
 
     fclose(out_data_file);
     std::string command =

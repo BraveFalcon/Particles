@@ -20,21 +20,20 @@ void SystemParticles::init_arrays() {
     }
 }
 
-SystemParticles::SystemParticles(int num_cells_per_dim, double density) : NUM_THREADS(omp_get_max_threads()),
-                                                                          NUM_PARTICLES(4 * num_cells_per_dim *
+SystemParticles::SystemParticles(int num_cells_per_dim, double density) : NUM_PARTICLES(4 * num_cells_per_dim *
                                                                                         num_cells_per_dim *
                                                                                         num_cells_per_dim) {
     init_arrays();
-    CELL_SIZE = pow(NUM_PARTICLES / density, 1.0 / 3);
+    cell_size = pow(NUM_PARTICLES / density, 1.0 / 3);
     const auto particles_per_dim = static_cast<unsigned >(std::ceil(std::cbrt(NUM_PARTICLES / 4.0)));
-    const double dist = CELL_SIZE / particles_per_dim;
+    const double dist = cell_size / particles_per_dim;
 
     int particle = 0;
     for (int z = 0; z < 2 * particles_per_dim && particle < NUM_PARTICLES; ++z) {
         for (int y = 0; y < 2 * particles_per_dim && particle < NUM_PARTICLES; ++y) {
             for (int x = 0; x < particles_per_dim && particle < NUM_PARTICLES; ++x) {
                 poses[particle++] =
-                        Vector3d(dist * 0.25) - Vector3d(CELL_SIZE / 2) +
+                        Vector3d(dist * 0.25) - Vector3d(cell_size / 2) +
                         Vector3d(dist * x + (abs(z - y) % 2) * dist / 2, dist / 2 * y, dist / 2 * z);
             }
         }
@@ -42,8 +41,7 @@ SystemParticles::SystemParticles(int num_cells_per_dim, double density) : NUM_TH
     update_forces();
 }
 
-SystemParticles::SystemParticles(std::string file_path, int frame, int num_particles_) : NUM_THREADS(
-        omp_get_max_threads()), NUM_PARTICLES(num_particles_) {
+SystemParticles::SystemParticles(std::string file_path, int frame, int num_particles_) : NUM_PARTICLES(num_particles_) {
     init_arrays();
     FILE *file = fopen(file_path.c_str(), "rb");
     if (!file) {
@@ -75,7 +73,7 @@ SystemParticles::SystemParticles(std::string file_path, int frame, int num_parti
         fprintf(stderr, "Can't read time_per_frame from bin_file in constructor");
         exit(1);
     }
-    if (!fread(&CELL_SIZE, sizeof(double), 1, file)) {
+    if (!fread(&cell_size, sizeof(double), 1, file)) {
         fprintf(stderr, "Can't read cell_size from bin_file in constructor");
         exit(1);
     }
@@ -103,7 +101,6 @@ SystemParticles::SystemParticles(std::string file_path, int frame, int num_parti
         exit(1);
     }
     update_forces();
-    init_energy = calc_energy();
 }
 
 SystemParticles::~SystemParticles() {
@@ -122,19 +119,10 @@ SystemParticles::~SystemParticles() {
 
 Vector3d SystemParticles::get_near_r(const Vector3d &pos1, const Vector3d &pos2) const {
     Vector3d res = pos2 - pos1;
-    res.x -= round(res.x / CELL_SIZE) * CELL_SIZE;
-    res.y -= round(res.y / CELL_SIZE) * CELL_SIZE;
-    res.z -= round(res.z / CELL_SIZE) * CELL_SIZE;
+    res.x -= round(res.x / cell_size) * cell_size;
+    res.y -= round(res.y / cell_size) * cell_size;
+    res.z -= round(res.z / cell_size) * cell_size;
     return res;
-}
-
-double SystemParticles::calc_virial(const Vector3d &pos1, const Vector3d &pos2) const {
-    Vector3d r_near = get_near_r(pos1, pos2);
-    double dist_sqr = r_near.sqr();
-    if (dist_sqr < CUT_DIST * CUT_DIST)
-        return 24 * (2 * pow(dist_sqr, -6) - pow(dist_sqr, -3));
-    else
-        return 0.0;
 }
 
 void SystemParticles::update_forces() {
@@ -142,7 +130,9 @@ void SystemParticles::update_forces() {
         for (int th = 0; th < NUM_THREADS; ++th)
             th_forces[th][i].set_values(0.0);
     }
-#pragma omp parallel for schedule(dynamic, 1) default(none)
+    double _pot_energy = 0;
+    double _virial = 0;
+#pragma omp parallel for schedule(dynamic, 1) default(none) reduction(+:_pot_energy, _virial)
     for (int i = 0; i < NUM_PARTICLES; ++i) {
         int thread = omp_get_thread_num();
         Vector3d pos1 = poses[i];
@@ -154,9 +144,9 @@ void SystemParticles::update_forces() {
         }
 #pragma omp simd
         for (int j = i + 1; j < NUM_PARTICLES; ++j) {
-            th_data[thread][3 * j] -= round(th_data[thread][3 * j] / CELL_SIZE) * CELL_SIZE;
-            th_data[thread][3 * j + 1] -= round(th_data[thread][3 * j + 1] / CELL_SIZE) * CELL_SIZE;
-            th_data[thread][3 * j + 2] -= round(th_data[thread][3 * j + 2] / CELL_SIZE) * CELL_SIZE;
+            th_data[thread][3 * j] -= round(th_data[thread][3 * j] / cell_size) * cell_size;
+            th_data[thread][3 * j + 1] -= round(th_data[thread][3 * j + 1] / cell_size) * cell_size;
+            th_data[thread][3 * j + 2] -= round(th_data[thread][3 * j + 2] / cell_size) * cell_size;
         }
 
         for (int j = i + 1; j < NUM_PARTICLES; ++j) {
@@ -169,9 +159,14 @@ void SystemParticles::update_forces() {
                         24 * (2 * pow(dist_sqr, -7) - pow(dist_sqr, -4));
                 th_forces[thread][i] -= force;
                 th_forces[thread][j] += force;
+                _pot_energy +=
+                        4 * (pow(dist_sqr, -6) - pow(dist_sqr, -3)) - 4 * (pow(CUT_DIST, -12) - pow(CUT_DIST, -6));
+                _virial += 24 * (2 * pow(dist_sqr, -6) - pow(dist_sqr, -3));
             }
         }
     }
+    pot_energy = _pot_energy;
+    virial = _virial;
     for (int i = 0; i < NUM_PARTICLES; ++i) {
         prev_forces[i] = forces[i];
         forces[i] = Vector3d(0.0);
@@ -194,11 +189,11 @@ void SystemParticles::init_bin_file(FILE *file, int num_frames, double time_per_
     fwrite(&num_frames, sizeof(int), 1, file);
     fwrite(&NUM_PARTICLES, sizeof(int), 1, file);
     fwrite(&time_per_frame, sizeof(double), 1, file);
-    fwrite(&CELL_SIZE, sizeof(double), 1, file);
+    fwrite(&cell_size, sizeof(double), 1, file);
 }
 
 void SystemParticles::write_bin_file(FILE *file) const {
-    double energy = calc_energy();
+    double energy = get_energy();
     double pressure = get_pressure();
     fwrite(&energy, sizeof(double), 1, file);
     fwrite(&pressure, sizeof(double), 1, file);
@@ -219,7 +214,6 @@ void SystemParticles::set_vels(double temperature, unsigned seed) {
     for (int i = 0; i < NUM_PARTICLES; ++i)
         vels[i] -= sum_vel / NUM_PARTICLES;
 
-    init_energy = calc_energy();
 }
 
 double SystemParticles::get_temperature() const {
@@ -230,35 +224,17 @@ double SystemParticles::get_temperature() const {
 }
 
 double SystemParticles::get_pressure() const {
-    double res = 0;
-#pragma omp parallel for reduction(+:res) schedule(dynamic, 1) default(none)
-    for (int i = 0; i < NUM_PARTICLES; ++i)
-        for (int j = i + 1; j < NUM_PARTICLES; ++j)
-            res += calc_virial(poses[i], poses[j]);
-    res = NUM_PARTICLES * get_temperature() + res / 3;
-    res /= pow(CELL_SIZE, 3);
-    return res;
+    return (NUM_PARTICLES * get_temperature() + virial / 3) / pow(cell_size, 3);
 }
 
-double SystemParticles::calc_energy() const {
-    double energy = 0;
-#pragma omp parallel for reduction(+:energy) default(none)
-    for (int i = 0; i < NUM_PARTICLES; ++i) {
-        energy += 0.5 * vels[i].sqr();
-        for (int j = i + 1; j < NUM_PARTICLES; ++j) {
-            double dist_sqr = get_near_r(poses[i], poses[j]).sqr();
-            if (dist_sqr < CUT_DIST * CUT_DIST)
-                energy +=
-                        4 * (pow(dist_sqr, -6) - pow(dist_sqr, -3)) - 4 * (pow(CUT_DIST, -12) - pow(CUT_DIST, -6));
-        }
-    }
-    return energy;
+double SystemParticles::get_energy() const {
+    return pot_energy + 1.5 * get_temperature() * NUM_PARTICLES;
 }
 
 double SystemParticles::get_free_time() const {
     double temp = get_temperature();
     double sigma = M_PI * pow(2.0 / 3.0 / temp * (sqrt(1 + 3 * temp) - 1), 1.0 / 3);
-    return pow(CELL_SIZE, 3) / sqrt(6 * temp) / NUM_PARTICLES / sigma;
+    return pow(cell_size, 3) / sqrt(6 * temp) / NUM_PARTICLES / sigma;
 }
 
 double SystemParticles::calc_rel_std_energy(double DT, double time) {
@@ -268,14 +244,14 @@ double SystemParticles::calc_rel_std_energy(double DT, double time) {
     int iters = 50;
     for (int i = 0; i < iters; ++i) {
         update_state(ceil(time / dt / iters));
-        energy.update(calc_energy());
+        energy.update(get_energy());
     }
     dt = old_dt;
     return energy.std() / std::abs(energy.mean());
 }
 
 void SystemParticles::guess_dt(double iter_time) {
-    double min_fluct = 0.5e-5;
+    double min_fluct = 1e-5;
     double max_fluct = 5e-5;
     double mean_fluct = 0.5 * (min_fluct + max_fluct);
     double dt_l, dt_r;
@@ -298,6 +274,7 @@ void SystemParticles::guess_dt(double iter_time) {
     double dt_m, fluct_m;
     do {
         dt_m = dt_l + (dt_r - dt_l) * (mean_fluct - fluct_l) / (fluct_r - fluct_l);
+        if (dt_m <= 0) dt_m = dt_l / 2;
         fluct_m = calc_rel_std_energy(dt_m, iter_time);
         if (dt_m > dt_r) {
             dt_l = dt_r;
@@ -361,7 +338,7 @@ void SystemParticles::npt_berendsen(unsigned num_iters, double press, double tem
             poses[i] *= mu;
             vels[i] *= lambda;
         }
-        CELL_SIZE *= mu;
+        cell_size *= mu;
         update_forces();
     }
 }
@@ -374,14 +351,14 @@ void SystemParticles::npt_berendsen(double press, double temp) {
         const double min_beta = 0.01, max_beta = 100;
         const double init_beta = 1;
     public:
-        Beta(double cell_size, double pressure) {
-            prev_vol = pow(cell_size, 3);
+        Beta(double cellSize, double pressure) {
+            prev_vol = pow(cellSize, 3);
             prev_press = pressure;
             beta = init_beta;
         }
 
-        void update(double cell_size, double pressure) {
-            double volume = pow(cell_size, 3);
+        void update(double cellSize, double pressure) {
+            double volume = pow(cellSize, 3);
             beta = -(volume - prev_vol) / (pressure - prev_press) * 2 / (volume + prev_vol);
             if (beta < 0) beta = init_beta;
             else if (beta < min_beta) beta = min_beta;
@@ -395,20 +372,20 @@ void SystemParticles::npt_berendsen(double press, double temp) {
     };
 
     print_info(0.0);
-    Beta beta(CELL_SIZE, get_pressure());
+    Beta beta(cell_size, get_pressure());
     Value cur_temp, cur_press;
     do {
         cur_temp.reset();
         cur_press.reset();
         double tau = get_free_time();
-        int num_iters = 10;
+        int num_iters = 16;
         for (int iter = 0; iter < num_iters; ++iter) {
             npt_berendsen(tau / dt / num_iters, press, temp, tau, beta * 1.0);
             cur_temp.update(get_temperature());
             cur_press.update(get_pressure());
         }
-        beta.update(CELL_SIZE, get_pressure());
-        printf("  %.2f\t%.5f\t%.5f\n", beta * 1.0, cur_temp.error_mean(), cur_press.error_mean());
+        beta.update(cell_size, get_pressure());
+        //printf("  %.2f\t%.5f\t%.5f\n", beta * 1.0, cur_temp.error_mean(), cur_press.error_mean());
         print_info(0.0);
     } while (std::abs(press - cur_press.mean()) > cur_press.error_mean()
              || cur_press.error_mean() / cur_press.mean() > 0.05
@@ -419,22 +396,26 @@ void SystemParticles::npt_berendsen(double press, double temp) {
 }
 
 //TODO::запись лог файла примерно как в lammps
-void SystemParticles::print_info(double frac_done) {
+std::string SystemParticles::print_info(double frac_done) const {
+    static TimeLeft timeLeft;
+    static double init_energy = 0;
+    static int print_info_iter = 0;
+    if (frac_done < 0) {
+        std::string full_time = timeLeft.get_full_time();
+        timeLeft = TimeLeft();
+        init_energy = 0;
+        print_info_iter = 0;
+        return full_time;
+    }
+    if (init_energy == 0) init_energy = get_energy();
     if (print_info_iter == 0 || print_info_iter > 9) {
         printf("Comp, %%   Left     E_dev      Temp     Press    Dens\n");
         print_info_iter = 0;
     }
     printf("%-10.0f%-9s%.1e    %.3f    %-9.3f%.3f\n", frac_done * 100, timeLeft(frac_done).c_str(),
-           std::abs(1 - calc_energy() / init_energy), get_temperature(), get_pressure(),
-           NUM_PARTICLES / pow(CELL_SIZE, 3));
+           std::abs(1 - get_energy() / init_energy), get_temperature(), get_pressure(),
+           NUM_PARTICLES / pow(cell_size, 3));
     //std::cout.flush();
     print_info_iter++;
-}
-
-std::string SystemParticles::reset_info_data() {
-    std::string full_time = timeLeft.get_full_time();
-    timeLeft = TimeLeft();
-    init_energy = calc_energy();
-    print_info_iter = 0;
-    return full_time;
+    return timeLeft.get_full_time();
 }
