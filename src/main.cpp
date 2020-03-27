@@ -33,23 +33,6 @@ std::string path_get_head(const std::string &path) {
     return path.substr(0, pos);
 }
 
-void print_info(int frame, const SystemParticles &systemParticles) {
-    static TimeLeft timeLeft;
-    static double init_energy = systemParticles.calc_energy();
-    double frac_done = 1.0 * frame / NUM_FRAMES;
-#ifdef _WIN64
-    system("cls");
-#else
-    system("clear");
-#endif
-    printf("Complete          %.2f%%\n", frac_done * 100);
-    printf("Left              %s\n", timeLeft(frac_done).c_str());
-    printf("Energy deviation  %.0e\n", std::abs(1 - systemParticles.calc_energy() / init_energy));
-    printf("Temperature       %.4f\n", systemParticles.get_temperature());
-    printf("Pressure          %.3f\n", systemParticles.get_pressure());
-    std::cout.flush();
-}
-
 /*
 void gen_info_file() {
     FILE *outfile = fopen("info.txt", "w");
@@ -91,31 +74,27 @@ int main(int argc, char **argv) {
     SystemParticles system_particles(NUM_CELLS_PER_DIM, DENSITY);
     system_particles.set_vels(1.0, 56);
 
-    printf("Preparing... (%f)\n", system_particles.get_free_time());
+    printf("Preparing... (free time: %f)\n", system_particles.get_free_time());
     system_particles.update_state(ceil(system_particles.get_free_time() * 5 / system_particles.dt));
+    std::cout << "Calculation time " << system_particles.reset_info_data() << "\n\n";
 
-    printf("NPT... (%f)\n", system_particles.get_free_time());
+    printf("NPT... (free time: %f)\n", system_particles.get_free_time());
     system_particles.guess_dt(system_particles.get_free_time() * 2);
-    system_particles.npt_berendsen(0.5, 1, system_particles.get_free_time() * 4, 1);
+    system_particles.npt_berendsen(0.01, 1, system_particles.get_free_time() * 4, 0.01);
+    std::cout << "Calculation time " << system_particles.reset_info_data() << "\n\n";
 
-    printf("NVE... (%f)\n", system_particles.get_free_time());
+    printf("NVE... (free time: %f)\n", system_particles.get_free_time());
     system_particles.guess_dt(system_particles.get_free_time() * 2);
     const int ITERS_PER_FRAME = ceil(system_particles.get_free_time() / 10 / system_particles.dt);
     system_particles.init_bin_file(out_data_file, NUM_FRAMES, system_particles.dt * ITERS_PER_FRAME);
 
-    std::chrono::high_resolution_clock::time_point start, end;
-    start = std::chrono::high_resolution_clock::now();
     for (int frame = 0; frame < NUM_FRAMES; ++frame) {
-        print_info(frame, system_particles);
+        system_particles.print_info(1.0 * frame / NUM_FRAMES);
         system_particles.write_bin_file(out_data_file);
         system_particles.update_state(ITERS_PER_FRAME);
     }
-    print_info(NUM_FRAMES, system_particles);
-    system_particles.write_bin_file(out_data_file);
-    end = std::chrono::high_resolution_clock::now();
-    auto calc_time = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
-    printf("%.3e", calc_time);
-    std::cout << "\nCalculation time  " << TimeLeft::secsToTimeStr(calc_time) << "\n\n";
+
+    std::cout << "\nCalculation time  " << system_particles.reset_info_data() << "\n\n";
 
     fclose(out_data_file);
     std::string command =

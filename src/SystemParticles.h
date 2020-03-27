@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Vector3.hpp"
+#include "TimeLeft.hpp"
 #include <vector>
 #include <algorithm>
 #include <utility>
@@ -19,6 +20,11 @@ private:
     double **th_data;
     const double CUT_DIST = 2.5;
     const int NUM_THREADS;
+    \
+
+    TimeLeft timeLeft;
+    double init_energy;
+    int print_info_iter = 0;
 
     [[nodiscard]] Vector3d get_near_r(const Vector3d &pos1, const Vector3d &pos2) const;
 
@@ -64,5 +70,9 @@ public:
     void guess_dt(double iter_time);
 
     void set_vels(double temperature, unsigned seed = 42);
+
+    void print_info(double frac_done);
+
+    std::string reset_info_data();
 };
 

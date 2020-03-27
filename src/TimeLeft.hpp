@@ -2,12 +2,12 @@
 
 #include <string>
 #include <chrono>
-#include "stdio.h"
 
 class TimeLeft {
 private:
     double frac_prev = 0, frac_done = 0;
     std::chrono::high_resolution_clock::time_point cur, prev;
+    std::chrono::high_resolution_clock::time_point start;
 public:
     static std::string secsToTimeStr(double seconds) {
         auto secs = int(seconds);
@@ -19,9 +19,9 @@ public:
         hours %= 24;
         auto buffer = new char[32];
         if (days > 0)
-            sprintf(buffer, "%dd:%dh:%dm:%ds", days, hours, mins, secs);
+            sprintf(buffer, "%dd:%dh", days, hours);
         else if (hours > 0)
-            sprintf(buffer, "%dh:%dm:%ds", hours, mins, secs);
+            sprintf(buffer, "%dh:%dm", hours, mins);
         else if (mins > 0)
             sprintf(buffer, "%dm:%ds", mins, secs);
         else
@@ -31,7 +31,9 @@ public:
         return res;
     }
 
-    TimeLeft() = default;
+    TimeLeft() {
+        start = std::chrono::high_resolution_clock::now();
+    }
 
     std::string operator()(double fraction_done) {
         frac_done = fraction_done;
@@ -42,5 +44,10 @@ public:
         prev = cur;
 
         return secsToTimeStr(time_left);
+    }
+
+    std::string get_full_time() {
+        auto end = std::chrono::high_resolution_clock::now();
+        return secsToTimeStr(std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count());
     }
 };

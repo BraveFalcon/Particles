@@ -103,6 +103,7 @@ SystemParticles::SystemParticles(std::string file_path, int frame, int num_parti
         exit(1);
     }
     update_forces();
+    init_energy = calc_energy();
 }
 
 SystemParticles::~SystemParticles() {
@@ -218,6 +219,7 @@ void SystemParticles::set_vels(double temperature, unsigned seed) {
     for (int i = 0; i < NUM_PARTICLES; ++i)
         vels[i] -= sum_vel / NUM_PARTICLES;
 
+    init_energy = calc_energy();
 }
 
 double SystemParticles::get_temperature() const {
@@ -351,11 +353,13 @@ void SystemParticles::npt_berendsen(double press, double temp, double tau, doubl
     prev_press = get_pressure();
     for (int iter = 0; iter < 10 * tau / dt; ++iter) {
         if (time > tau) {
+            print_info(1.0 * iter / num_iters);
             time = 0;
             double cur_press, cur_vol;
             cur_vol = pow(CELL_SIZE, 3);
             cur_press = get_pressure();
             beta = std::max(min_beta, -(cur_vol - prev_vol) / (cur_press - prev_press) * 2 / (cur_vol + prev_vol));
+            //printf("%f\n", beta);
             prev_vol = cur_vol;
             prev_press = cur_press;
             if (get_temperature() > 10) {
@@ -376,4 +380,25 @@ void SystemParticles::npt_berendsen(double press, double temp, double tau, doubl
         CELL_SIZE *= mu;
         update_forces();
     }
+}
+
+//TODO::запись лог файла примерно как в lammps
+void SystemParticles::print_info(double frac_done) {
+    if (print_info_iter == 0 || print_info_iter > 9) {
+        printf("Comp      Left     E_dev      Temp     Press    Dens\n");
+        print_info_iter = 0;
+    }
+    printf("%.2f%%    %-9s%.1e    %.3f    %-9.3f%.3f\n", frac_done * 100, timeLeft(frac_done).c_str(),
+           std::abs(1 - calc_energy() / init_energy), get_temperature(), get_pressure(),
+           NUM_PARTICLES / pow(CELL_SIZE, 3));
+    //std::cout.flush();
+    print_info_iter++;
+}
+
+std::string SystemParticles::reset_info_data() {
+    std::string full_time = timeLeft.get_full_time();
+    timeLeft = TimeLeft();
+    init_energy = calc_energy();
+    print_info_iter = 0;
+    return full_time;
 }
