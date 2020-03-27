@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
     printf("DT: %.2e\n", system_particles.dt);
 
     printf("NPT... (free time: %f)\n", system_particles.get_free_time());
-    system_particles.npt_berendsen(0.01, 1.5);
+    system_particles.npt_berendsen(3, 2.0);
     std::cout << "Calculation time " << system_particles.reset_info_data() << "\n\n";
 
     printf("Selecting dt... (free time: %f)\n", system_particles.get_free_time());

@@ -397,10 +397,7 @@ void SystemParticles::npt_berendsen(double press, double temp) {
     print_info(0.0);
     Beta beta(CELL_SIZE, get_pressure());
     Value cur_temp, cur_press;
-    double prev_temp, prev_press;
     do {
-        prev_temp = cur_temp.mean();
-        prev_press = cur_press.mean();
         cur_temp.reset();
         cur_press.reset();
         double tau = get_free_time();
