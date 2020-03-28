@@ -83,7 +83,8 @@ int main(int argc, char **argv) {
 
     system_particles.guess_dt(system_particles.get_free_time() * 3);
 
-    system_particles.npt_berendsen(0.5, 0.9, 0.5);
+    //system_particles.npt_berendsen(0.5, 0.9, 0.5);
+    system_particles.termostat_berendsen(0.9);
 
     system_particles.guess_dt(system_particles.get_free_time() * 3);
 

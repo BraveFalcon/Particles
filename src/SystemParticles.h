@@ -49,6 +49,8 @@ public:
 
     void termostat_berendsen(int num_iters, double temp, double tau);
 
+    void termostat_berendsen(double temp);
+
     void npt_berendsen(double press, double temp, double mean_beta = 1.0);
 
     void npt_berendsen(unsigned num_iters, double press, double temp, double tau, double beta);

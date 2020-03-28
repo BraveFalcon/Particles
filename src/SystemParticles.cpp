@@ -352,6 +352,32 @@ void SystemParticles::npt_berendsen(unsigned num_iters, double press, double tem
     }
 }
 
+void SystemParticles::termostat_berendsen(double temp) {
+    printf("Thermostating...\n");
+    print_info(0.0);
+    Value cur_temp;
+    double prev_temp;
+    double init_tau = get_free_time();
+    do {
+        prev_temp = cur_temp.mean();
+        cur_temp.reset();
+        double tau = get_free_time();
+        if (std::abs(tau - init_tau) / init_tau > 0.5) {
+            printf("\n");
+            guess_dt(tau * 3);
+            init_tau = tau;
+        }
+        int num_iters = 16;
+        for (int iter = 0; iter < num_iters; ++iter) {
+            termostat_berendsen(ceil(tau / dt / num_iters), temp, tau);
+            cur_temp.update(get_temperature());
+        }
+        print_info(0.0);
+    } while (std::abs(temp - cur_temp.mean()) > cur_temp.error_mean()
+             || std::abs(prev_temp - cur_temp.mean()) > cur_temp.error_mean()
+            );
+    std::cout << "Calculation time " << print_info(-1) << "\n\n";
+}
 void SystemParticles::npt_berendsen(double press, double temp, double mean_beta) {
     class Beta {
     private:
@@ -437,7 +463,7 @@ std::string SystemParticles::print_info(double frac_done) const {
         print_info_iter = 0;
     }
     printf("%-4.0f%-9s%.1e    %.3f    %-9.3f%-9.3f%.3f\n", frac_done * 100, timeLeft(frac_done).c_str(),
-           std::abs(1 - get_energy() / init_energy), get_temperature(), get_pressure(),
+           get_energy() / init_energy - 1, get_temperature(), get_pressure(),
            NUM_PARTICLES / pow(cell_size, 3), get_free_time());
     //std::cout.flush();
     print_info_iter++;
