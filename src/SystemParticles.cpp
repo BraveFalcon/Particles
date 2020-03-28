@@ -247,10 +247,14 @@ double SystemParticles::calc_rel_std_energy(double DT, double time) {
         energy.update(get_energy());
     }
     dt = old_dt;
-    return energy.std() / std::abs(energy.mean());
+    double fluct = energy.std() / std::abs(energy.mean());
+    printf("%-9.0e%.1e\n", DT, fluct);
+    return fluct;
 }
 
 void SystemParticles::guess_dt(double iter_time) {
+    printf("Selecting dt... (free time: %f)\n", get_free_time());
+    printf("DT       Fluctuation\n");
     double min_fluct = 1e-5;
     double max_fluct = 5e-5;
     double mean_fluct = 0.5 * (min_fluct + max_fluct);
@@ -266,9 +270,13 @@ void SystemParticles::guess_dt(double iter_time) {
     } else if (fluct_l < min_fluct) {
         dt_r = dt_l * 5;
         fluct_r = calc_rel_std_energy(dt_r, iter_time);
-    } else return;
+    } else {
+        printf("\n");
+        return;
+    }
     if (fluct_r < max_fluct && fluct_r > min_fluct) {
         dt = dt_r;
+        printf("\n");
         return;
     }
     double dt_m, fluct_m;
@@ -295,6 +303,7 @@ void SystemParticles::guess_dt(double iter_time) {
         }
     } while (fluct_m < min_fluct || fluct_m > max_fluct);
     dt = dt_m;
+    printf("\n");
 }
 
 void SystemParticles::termostat_andersen(int num_particles, double temp, int seed) {
@@ -343,15 +352,17 @@ void SystemParticles::npt_berendsen(unsigned num_iters, double press, double tem
     }
 }
 
-void SystemParticles::npt_berendsen(double press, double temp) {
+//TODO::менять dt, когда free_time меняется на 50%
+//TODO::ПРОСЛЕДИТЬ ЗА ДИНАМИКОЙ cur_press.error_mean() / cur_press.mean(), ЧТОБЫ ПРОВЕРИТЬ, ЯВЛЯЕТСЯ ЛИ ЭТО ФАКТОРОМ
+void SystemParticles::npt_berendsen(double press, double temp, double mean_beta) {
     class Beta {
     private:
         double prev_vol, prev_press;
         double beta;
-        const double min_beta = 0.01, max_beta = 100;
-        const double init_beta = 1;
+        const double min_beta = 1e-4, max_beta = 100;
+        const double init_beta;
     public:
-        Beta(double cellSize, double pressure) {
+        Beta(double cellSize, double pressure, double mean_beta) : init_beta(mean_beta) {
             prev_vol = pow(cellSize, 3);
             prev_press = pressure;
             beta = init_beta;
@@ -370,9 +381,9 @@ void SystemParticles::npt_berendsen(double press, double temp) {
 
         double operator*(double x) { return beta * x; };
     };
-
+    printf("NPT...\n");
     print_info(0.0);
-    Beta beta(cell_size, get_pressure());
+    Beta beta(cell_size, get_pressure(), mean_beta);
     Value cur_temp, cur_press;
     do {
         cur_temp.reset();
@@ -380,7 +391,7 @@ void SystemParticles::npt_berendsen(double press, double temp) {
         double tau = get_free_time();
         int num_iters = 16;
         for (int iter = 0; iter < num_iters; ++iter) {
-            npt_berendsen(tau / dt / num_iters, press, temp, tau, beta * 1.0);
+            npt_berendsen(ceil(tau / dt / num_iters), press, temp, tau, beta * 1.0);
             cur_temp.update(get_temperature());
             cur_press.update(get_pressure());
         }
@@ -392,6 +403,8 @@ void SystemParticles::npt_berendsen(double press, double temp) {
              || std::abs(temp - cur_temp.mean()) > cur_temp.error_mean()
              || cur_temp.error_mean() / cur_temp.mean() > 0.05
             );
+    std::cout << "Calculation time " << print_info(-1) << "\n\n";
+
 
 }
 
@@ -409,12 +422,12 @@ std::string SystemParticles::print_info(double frac_done) const {
     }
     if (init_energy == 0) init_energy = get_energy();
     if (print_info_iter == 0 || print_info_iter > 9) {
-        printf("Comp, %%   Left     E_dev      Temp     Press    Dens\n");
+        printf("%%   Left     E_dev      Temp     Press    Dens     Free_time\n");
         print_info_iter = 0;
     }
-    printf("%-10.0f%-9s%.1e    %.3f    %-9.3f%.3f\n", frac_done * 100, timeLeft(frac_done).c_str(),
+    printf("%-4.0f%-9s%.1e    %.3f    %-9.3f%-9.3f%.3f\n", frac_done * 100, timeLeft(frac_done).c_str(),
            std::abs(1 - get_energy() / init_energy), get_temperature(), get_pressure(),
-           NUM_PARTICLES / pow(cell_size, 3));
+           NUM_PARTICLES / pow(cell_size, 3), get_free_time());
     //std::cout.flush();
     print_info_iter++;
     return timeLeft.get_full_time();

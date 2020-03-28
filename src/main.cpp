@@ -2,11 +2,9 @@
 #include <chrono>
 #include <string>
 #include "SystemParticles.h"
-#include "TimeLeft.hpp"
 #include <iomanip>
 
 const int NUM_FRAMES = 100;
-//const int ITERS_PER_FRAME = 10;
 const int NUM_CELLS_PER_DIM = 5;
 const double DENSITY = 0.24;
 
@@ -75,7 +73,7 @@ int main(int argc, char **argv) {
     system_particles.set_vels(1.5, 56);
     system_particles.dt = 3e-3;
 
-    printf("Relaxation... (free time: %f)\n", system_particles.get_free_time());
+    printf("Relaxation...\n");
     int num_iters = 3;
     for (int iter = 0; iter < num_iters; ++iter) {
         system_particles.print_info(1.0 * iter / num_iters);
@@ -83,19 +81,13 @@ int main(int argc, char **argv) {
     }
     std::cout << "Calculation time " << system_particles.print_info(-1) << "\n\n";
 
-    printf("Selecting dt... (free time: %f)\n", system_particles.get_free_time());
-    system_particles.guess_dt(system_particles.get_free_time() * 2);
-    printf("DT: %.2e\n\n", system_particles.dt);
+    system_particles.guess_dt(system_particles.get_free_time() * 3);
 
-    printf("NPT... (free time: %f)\n", system_particles.get_free_time());
-    system_particles.npt_berendsen(3, 2.0);
-    std::cout << "Calculation time " << system_particles.print_info(-1) << "\n\n";
+    system_particles.npt_berendsen(60, 3, 0.01);
 
-    printf("Selecting dt... (free time: %f)\n", system_particles.get_free_time());
-    printf("DT: %.2e\n", system_particles.dt);
-    system_particles.guess_dt(system_particles.get_free_time() * 2);
+    system_particles.guess_dt(system_particles.get_free_time() * 3);
 
-    printf("NVE... (free time: %f)\n", system_particles.get_free_time());
+    printf("NVE...\n");
     const int ITERS_PER_FRAME = ceil(system_particles.get_free_time() / 10 / system_particles.dt);
     system_particles.init_bin_file(out_data_file, NUM_FRAMES, system_particles.dt * ITERS_PER_FRAME);
 
@@ -105,7 +97,7 @@ int main(int argc, char **argv) {
         system_particles.update_state(ITERS_PER_FRAME);
     }
 
-    std::cout << "\nCalculation time  " << system_particles.print_info(-1) << "\n\n";
+    std::cout << "Calculation time  " << system_particles.print_info(-1) << "\n\n";
 
     fclose(out_data_file);
     std::string command =
