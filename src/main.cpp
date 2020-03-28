@@ -6,7 +6,7 @@
 
 const int NUM_FRAMES = 100;
 const int NUM_CELLS_PER_DIM = 5;
-const double DENSITY = 0.24;
+const double DENSITY = 0.9;
 
 std::string path_join(std::initializer_list<std::string> input) {
     std::string res;
@@ -70,8 +70,8 @@ int main(int argc, char **argv) {
     //SystemParticles system_particles(
     //        "/home/brave_falcon/CLionProjects/Particles_git/experiments/4sem/pressure/1.0/data.bin", 0);
     SystemParticles system_particles(NUM_CELLS_PER_DIM, DENSITY);
-    system_particles.set_vels(1.5, 56);
-    system_particles.dt = 3e-3;
+    system_particles.set_vels(5.0, 56);
+    system_particles.dt = 1e-3;
 
     printf("Relaxation...\n");
     int num_iters = 3;
@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
 
     system_particles.guess_dt(system_particles.get_free_time() * 3);
 
-    system_particles.npt_berendsen(60, 3, 0.01);
+    system_particles.npt_berendsen(0.5, 0.9, 0.5);
 
     system_particles.guess_dt(system_particles.get_free_time() * 3);
 

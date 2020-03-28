@@ -352,14 +352,12 @@ void SystemParticles::npt_berendsen(unsigned num_iters, double press, double tem
     }
 }
 
-//TODO::менять dt, когда free_time меняется на 50%
-//TODO::ПРОСЛЕДИТЬ ЗА ДИНАМИКОЙ cur_press.error_mean() / cur_press.mean(), ЧТОБЫ ПРОВЕРИТЬ, ЯВЛЯЕТСЯ ЛИ ЭТО ФАКТОРОМ
 void SystemParticles::npt_berendsen(double press, double temp, double mean_beta) {
     class Beta {
     private:
         double prev_vol, prev_press;
         double beta;
-        const double min_beta = 1e-4, max_beta = 100;
+        const double min_beta = 1e-4, max_beta = 1e4;
         const double init_beta;
     public:
         Beta(double cellSize, double pressure, double mean_beta) : init_beta(mean_beta) {
@@ -385,10 +383,20 @@ void SystemParticles::npt_berendsen(double press, double temp, double mean_beta)
     print_info(0.0);
     Beta beta(cell_size, get_pressure(), mean_beta);
     Value cur_temp, cur_press;
+    double init_tau = get_free_time();
+    //FILE *outfile = fopen("/home/brave_falcon/CLionProjects/Particles_git/experiments/new/params.csv", "w");
+    double prev_press, prev_temp;
     do {
+        prev_press = cur_press.mean();
+        prev_temp = cur_temp.mean();
         cur_temp.reset();
         cur_press.reset();
         double tau = get_free_time();
+        if (std::abs(tau - init_tau) / init_tau > 0.5) {
+            printf("\n");
+            guess_dt(tau * 3);
+            init_tau = tau;
+        }
         int num_iters = 16;
         for (int iter = 0; iter < num_iters; ++iter) {
             npt_berendsen(ceil(tau / dt / num_iters), press, temp, tau, beta * 1.0);
@@ -398,11 +406,14 @@ void SystemParticles::npt_berendsen(double press, double temp, double mean_beta)
         beta.update(cell_size, get_pressure());
         //printf("  %.2f\t%.5f\t%.5f\n", beta * 1.0, cur_temp.error_mean(), cur_press.error_mean());
         print_info(0.0);
+        //fprintf(outfile, "%f\t%f\t%f\t%f\n", cur_temp.mean(), cur_temp.error_mean(), std::abs(temp - cur_temp.mean()) / cur_temp.error_mean(),
+        //std::abs(prev_temp - cur_temp.mean()) / cur_temp.error_mean());
     } while (std::abs(press - cur_press.mean()) > cur_press.error_mean()
-             || cur_press.error_mean() / cur_press.mean() > 0.05
+             || std::abs(prev_press - cur_press.mean()) > cur_press.error_mean()
              || std::abs(temp - cur_temp.mean()) > cur_temp.error_mean()
-             || cur_temp.error_mean() / cur_temp.mean() > 0.05
+             || std::abs(prev_temp - cur_temp.mean()) > cur_temp.error_mean()
             );
+    //fclose(outfile);
     std::cout << "Calculation time " << print_info(-1) << "\n\n";
 
 
