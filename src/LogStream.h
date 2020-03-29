@@ -6,6 +6,17 @@ class LogStream : std::ostream {
 private:
     std::ofstream file;
 public:
+    void open(const std::string &log_file_path) {
+        file.close();
+        file.open(log_file_path);
+        if (!file) {
+            std::cerr << "Can't open log file" << std::endl;
+            exit(1);
+        }
+    }
+
+    void close() { file.close(); }
+
     explicit LogStream(const std::string &log_file_path) : file(log_file_path) {
         if (!file) {
             std::cerr << "Can't open log file" << std::endl;
@@ -25,7 +36,6 @@ public:
         file.flush();
     }
 
-    void close() { file.close(); }
 
     ~LogStream() { close(); }
 };
