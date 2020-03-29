@@ -17,6 +17,8 @@ public:
 
     void close() { file.close(); }
 
+    LogStream() = default;
+
     explicit LogStream(const std::string &log_file_path) : file(log_file_path) {
         if (!file) {
             std::cerr << "Can't open log file" << std::endl;

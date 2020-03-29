@@ -29,7 +29,7 @@ private:
 
 
     [[nodiscard]] Vector3d get_near_r(const Vector3d &pos1, const Vector3d &pos2) const;
-    
+
     [[nodiscard]] double calc_rel_std_energy(double DT, double time);
 
     void update_forces();
@@ -60,6 +60,8 @@ public:
     void termostat_andersen(int num_particles, double temp, int seed = 42);
 
     void init_bin_file(FILE *file, int num_frames, double time_per_frame) const;
+
+    void init_log_file(std::string file_path);
 
     void write_bin_file(FILE *file) const;
 

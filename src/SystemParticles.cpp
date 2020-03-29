@@ -6,10 +6,6 @@
 
 
 void SystemParticles::init_arrays() {
-    log << "NUMBER OF PARTICLES: " << NUM_PARTICLES << '\n';
-    log << "CUT_DIST: " << std::fixed << std::setprecision(2) << CUT_DIST << '\n';
-    log << "NUMBER OF OMP THREADS: " << NUM_THREADS << "\n\n";
-    log.flush();
     omp_set_num_threads(NUM_THREADS);
     poses = new Vector3d[NUM_PARTICLES];
     prev_forces = new Vector3d[NUM_PARTICLES];
@@ -22,6 +18,14 @@ void SystemParticles::init_arrays() {
         th_forces[i] = new Vector3d[NUM_PARTICLES];
         th_data[i] = new double[3 * NUM_PARTICLES];
     }
+}
+
+void SystemParticles::init_log_file(std::string file_path) {
+    log.open(file_path);
+    log << "NUMBER OF PARTICLES: " << NUM_PARTICLES << '\n';
+    log << "CUT_DIST: " << std::fixed << std::setprecision(2) << CUT_DIST << '\n';
+    log << "NUMBER OF OMP THREADS: " << NUM_THREADS << "\n\n";
+    log.flush();
 }
 
 SystemParticles::SystemParticles(int num_cells_per_dim, double density, LogStream &logStream) :
