@@ -9,6 +9,8 @@
 #include <cstdio>
 #include <omp.h>
 #include "Value.hpp"
+#include "LogStream.h"
+#include <iomanip>
 
 
 class SystemParticles {
@@ -23,7 +25,7 @@ private:
     double pot_energy;
     const double CUT_DIST = 2.5;
     const int NUM_THREADS = 4;
-
+    LogStream &log;
 
 
     [[nodiscard]] Vector3d get_near_r(const Vector3d &pos1, const Vector3d &pos2) const;
@@ -39,9 +41,9 @@ public:
 
     void init_arrays();
 
-    explicit SystemParticles(int num_cells_per_dim, double density);
+    explicit SystemParticles(int num_cells_per_dim, double density, LogStream &logStream);
 
-    explicit SystemParticles(std::string file_path, int frame, int num_particles);
+    explicit SystemParticles(std::string file_path, int frame, int num_particles, LogStream &logStream);
 
     ~SystemParticles();
 

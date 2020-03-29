@@ -16,6 +16,7 @@ if path.exists(path.join(c_path, 'data.bin')):
     new_dir_name = datetime.strftime(datetime.now(), "%y.%m.%d-%H:%M:%S")
     os.mkdir(path.join(experiments_path, new_dir_name))
     shutil.move(path.join(c_path, 'data.bin'), path.join(experiments_path, new_dir_name, 'data.bin'))
+    shutil.move(path.join(c_path, 'log.txt'), path.join(experiments_path, new_dir_name, 'log.txt'))
     os.chdir(path.join(experiments_path, new_dir_name))
 
 print("Importing data...")

@@ -3,6 +3,8 @@
 #include <string>
 #include "SystemParticles.h"
 #include <iomanip>
+#include "LogStream.h"
+
 
 const int NUM_FRAMES = 100;
 const int NUM_CELLS_PER_DIM = 5;
@@ -30,6 +32,7 @@ std::string path_get_head(const std::string &path) {
         return "";
     return path.substr(0, pos);
 }
+
 
 /*
 void gen_info_file() {
@@ -59,6 +62,7 @@ int main(int argc, char **argv) {
     }
     std::string save_path(argv[1]);
 
+    LogStream log(path_join({save_path, "log.txt"}));
 
     FILE *out_data_file = fopen(path_join({save_path, "data.bin"}).c_str(), "wb");
     if (!out_data_file) {
@@ -69,17 +73,21 @@ int main(int argc, char **argv) {
 
     //SystemParticles system_particles(
     //        "/home/brave_falcon/CLionProjects/Particles_git/experiments/4sem/pressure/1.0/data.bin", 0);
-    SystemParticles system_particles(NUM_CELLS_PER_DIM, DENSITY);
+    SystemParticles system_particles(NUM_CELLS_PER_DIM, DENSITY, log);
     system_particles.set_vels(5.0, 56);
     system_particles.dt = 1e-3;
 
-    printf("Relaxation...\n");
+    auto start = std::chrono::high_resolution_clock::now();
+
+    log << "Relaxation...\n";
+    log.flush();
     int num_iters = 3;
     for (int iter = 0; iter < num_iters; ++iter) {
         system_particles.print_info(1.0 * iter / num_iters);
         system_particles.update_state(ceil(system_particles.get_free_time() * 5 / system_particles.dt));
     }
-    std::cout << "Calculation time " << system_particles.print_info(-1) << "\n\n";
+    log << "Calculation time " << system_particles.print_info(-1) << "\n\n";
+    log.flush();
 
     system_particles.guess_dt(system_particles.get_free_time() * 3);
 
@@ -88,7 +96,8 @@ int main(int argc, char **argv) {
 
     system_particles.guess_dt(system_particles.get_free_time() * 3);
 
-    printf("NVE...\n");
+    log << "NVE...\n";
+    log.flush();
     const int ITERS_PER_FRAME = ceil(system_particles.get_free_time() / 10 / system_particles.dt);
     system_particles.init_bin_file(out_data_file, NUM_FRAMES, system_particles.dt * ITERS_PER_FRAME);
 
@@ -98,17 +107,27 @@ int main(int argc, char **argv) {
         system_particles.update_state(ITERS_PER_FRAME);
     }
 
-    std::cout << "Calculation time  " << system_particles.print_info(-1) << "\n\n";
-
+    log << "Calculation time  " << system_particles.print_info(-1) << "\n\n";
+    log.flush();
     fclose(out_data_file);
+
+    auto end = std::chrono::high_resolution_clock::now();
+    log << "Full calculation time  "
+        << TimeLeft::secsToTimeStr(std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count())
+        << '\n';
+    start = std::chrono::high_resolution_clock::now();
     std::string command =
             "python3 " + path_join({path_get_head(argv[0]), "..", "python_scripts", "make_dirs_and_images.py"}) +
             " " +
             save_path + " " + save_path;
 
     if (std::system(command.c_str())) {
-        std::cerr << "Python error";
+        log << "Python error\n";
+        log.flush();
         exit(1);
     }
-
+    end = std::chrono::high_resolution_clock::now();
+    log << "Python time  "
+        << TimeLeft::secsToTimeStr(std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count())
+        << '\n';
 }

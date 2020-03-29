@@ -6,6 +6,10 @@
 
 
 void SystemParticles::init_arrays() {
+    log << "NUMBER OF PARTICLES: " << NUM_PARTICLES << '\n';
+    log << "CUT_DIST: " << std::fixed << std::setprecision(2) << CUT_DIST << '\n';
+    log << "NUMBER OF OMP THREADS: " << NUM_THREADS << "\n\n";
+    log.flush();
     omp_set_num_threads(NUM_THREADS);
     poses = new Vector3d[NUM_PARTICLES];
     prev_forces = new Vector3d[NUM_PARTICLES];
@@ -20,9 +24,9 @@ void SystemParticles::init_arrays() {
     }
 }
 
-SystemParticles::SystemParticles(int num_cells_per_dim, double density) : NUM_PARTICLES(4 * num_cells_per_dim *
-                                                                                        num_cells_per_dim *
-                                                                                        num_cells_per_dim) {
+SystemParticles::SystemParticles(int num_cells_per_dim, double density, LogStream &logStream) :
+        NUM_PARTICLES(4 * num_cells_per_dim * num_cells_per_dim * num_cells_per_dim),
+        log(logStream) {
     init_arrays();
     cell_size = pow(NUM_PARTICLES / density, 1.0 / 3);
     const auto particles_per_dim = static_cast<unsigned >(std::ceil(std::cbrt(NUM_PARTICLES / 4.0)));
@@ -41,63 +45,65 @@ SystemParticles::SystemParticles(int num_cells_per_dim, double density) : NUM_PA
     update_forces();
 }
 
-SystemParticles::SystemParticles(std::string file_path, int frame, int num_particles_) : NUM_PARTICLES(num_particles_) {
+SystemParticles::SystemParticles(std::string file_path, int frame, int num_particles_, LogStream &logStream) :
+        NUM_PARTICLES(num_particles_),
+        log(logStream) {
     init_arrays();
     FILE *file = fopen(file_path.c_str(), "rb");
     if (!file) {
-        fprintf(stderr, "Can't open file in constructor");
+        std::cerr << "Can't open file in constructor" << std::endl;
         exit(1);
     }
     int num_frames;
     if (!fread(&num_frames, sizeof(int), 1, file)) {
-        fprintf(stderr, "Can't read num_frames from bin_file in constructor");
+        std::cerr << "Can't read num_frames from bin_file in constructor" << std::endl;
         exit(1);
     }
     if (frame < 0)
         frame = num_frames - frame;
     if (frame >= num_frames || frame < 0) {
-        fprintf(stderr, "There isn't frame with this number in constructor");
+        std::cerr << "There isn't frame with this number in constructor" << std::endl;
         exit(1);
     }
     int num_particles;
     if (!fread(&num_particles, sizeof(int), 1, file)) {
-        fprintf(stderr, "Can't read num_particles from bin_file in constructor");
+        std::cerr << "Can't read num_particles from bin_file in constructor" << std::endl;
         exit(1);
     }
     if (num_particles != NUM_PARTICLES) {
-        fprintf(stderr, "Numbers of particles aren't same in constructor");
+        std::cerr << "Numbers of particles aren't same in constructor" << std::endl;
         exit(1);
     }
     double time_per_frame;
     if (!fread(&time_per_frame, sizeof(double), 1, file)) {
-        fprintf(stderr, "Can't read time_per_frame from bin_file in constructor");
+        std::cerr << "Can't read time_per_frame from bin_file in constructor" << std::endl;
         exit(1);
     }
     if (!fread(&cell_size, sizeof(double), 1, file)) {
-        fprintf(stderr, "Can't read cell_size from bin_file in constructor");
+        std::cerr << "Can't read cell_size from bin_file in constructor" << std::endl;
         exit(1);
     }
     if (fseek(file, sizeof(double) * (2 + 6 * num_particles) * frame, SEEK_CUR) != 0) {
-        fprintf(stderr, "Can't find  %d frame in bin_file in constructor", frame);
+        std::cerr << "Can't find  " << frame << " frame in bin_file in constructor" << std::endl;
         exit(1);
     }
 
     double energy;
     if (!fread(&energy, sizeof(double), 1, file)) {
-        fprintf(stderr, "Can't read energy of %d frame in constructor", frame);
+        std::cerr << "Can't read energy of " << frame << " frame in constructor" << std::endl;
         exit(1);
     }
     double pressure;
     if (!fread(&pressure, sizeof(double), 1, file)) {
-        fprintf(stderr, "Can't read pressure of %d frame in constructor", frame);
+        std::cerr << "Can't read pressure of " << frame << " frame in constructor" << std::endl;
         exit(1);
     }
     if (fread(poses, sizeof(double), 3 * num_particles, file) != 3 * num_particles) {
-        fprintf(stderr, "Can't read poses of %d frame in constructor", frame);
+        std::cerr << "Can't read poses of " << frame << " frame in constructor" << std::endl;
         exit(1);
     }
     if (fread(vels, sizeof(double), 3 * num_particles, file) != 3 * num_particles) {
-        fprintf(stderr, "Can't read vels of %d frame in constructor", frame);
+        std::cerr << "Can't read vels of " << frame << " frame in constructor" << std::endl;
         exit(1);
     }
     update_forces();
@@ -248,13 +254,17 @@ double SystemParticles::calc_rel_std_energy(double DT, double time) {
     }
     dt = old_dt;
     double fluct = energy.std() / std::abs(energy.mean());
-    printf("%-9.0e%.1e\n", DT, fluct);
+    log << std::left << std::setw(11) << std::setprecision(1) << std::scientific << DT;
+    log << std::setprecision(1) << std::scientific << fluct;
+    log << "\n";
+    log.flush();
     return fluct;
 }
 
 void SystemParticles::guess_dt(double iter_time) {
-    printf("Selecting dt... (free time: %f)\n", get_free_time());
-    printf("DT       Fluctuation\n");
+    log << "Selecting dt... (free time: " << std::setprecision(4) << std::fixed << get_free_time() << ")\n";
+    log << "DT         Fluctuation\n";
+    log.flush();
     double min_fluct = 1e-5;
     double max_fluct = 5e-5;
     double mean_fluct = 0.5 * (min_fluct + max_fluct);
@@ -271,12 +281,14 @@ void SystemParticles::guess_dt(double iter_time) {
         dt_r = dt_l * 5;
         fluct_r = calc_rel_std_energy(dt_r, iter_time);
     } else {
-        printf("\n");
+        log << '\n';
+        log.flush();
         return;
     }
     if (fluct_r < max_fluct && fluct_r > min_fluct) {
         dt = dt_r;
-        printf("\n");
+        log << '\n';
+        log.flush();
         return;
     }
     double dt_m, fluct_m;
@@ -303,7 +315,8 @@ void SystemParticles::guess_dt(double iter_time) {
         }
     } while (fluct_m < min_fluct || fluct_m > max_fluct);
     dt = dt_m;
-    printf("\n");
+    log << '\n';
+    log.flush();
 }
 
 void SystemParticles::termostat_andersen(int num_particles, double temp, int seed) {
@@ -332,7 +345,8 @@ void SystemParticles::npt_berendsen(unsigned num_iters, double press, double tem
         update_state(1);
 
         if (get_temperature() > 10) {
-            fprintf(stderr, "Heat boom in berendsen\n");
+            log << ".......................Heat boom............................\n";
+            log.flush();
             set_vels(temp);
         }
 
@@ -353,7 +367,8 @@ void SystemParticles::npt_berendsen(unsigned num_iters, double press, double tem
 }
 
 void SystemParticles::termostat_berendsen(double temp) {
-    printf("Thermostating...\n");
+    log << "Thermostating...\n";
+    log.flush();
     print_info(0.0);
     Value cur_temp;
     double prev_temp;
@@ -363,8 +378,10 @@ void SystemParticles::termostat_berendsen(double temp) {
         cur_temp.reset();
         double tau = get_free_time();
         if (std::abs(tau - init_tau) / init_tau > 0.5) {
-            printf("\n");
+            log << '\n';
+            log.flush();
             guess_dt(tau * 3);
+            log << "Thermostating...\n";
             init_tau = tau;
         }
         int num_iters = 16;
@@ -376,8 +393,9 @@ void SystemParticles::termostat_berendsen(double temp) {
     } while (std::abs(temp - cur_temp.mean()) > cur_temp.error_mean()
              || std::abs(prev_temp - cur_temp.mean()) > cur_temp.error_mean()
             );
-    std::cout << "Calculation time " << print_info(-1) << "\n\n";
+    log << "Calculation time " << print_info(-1) << "\n\n";
 }
+
 void SystemParticles::npt_berendsen(double press, double temp, double mean_beta) {
     class Beta {
     private:
@@ -405,12 +423,12 @@ void SystemParticles::npt_berendsen(double press, double temp, double mean_beta)
 
         double operator*(double x) { return beta * x; };
     };
-    printf("NPT...\n");
+    log << "NPT...\n";
+    log.flush();
     print_info(0.0);
     Beta beta(cell_size, get_pressure(), mean_beta);
     Value cur_temp, cur_press;
     double init_tau = get_free_time();
-    //FILE *outfile = fopen("/home/brave_falcon/CLionProjects/Particles_git/experiments/new/params.csv", "w");
     double prev_press, prev_temp;
     do {
         prev_press = cur_press.mean();
@@ -419,8 +437,10 @@ void SystemParticles::npt_berendsen(double press, double temp, double mean_beta)
         cur_press.reset();
         double tau = get_free_time();
         if (std::abs(tau - init_tau) / init_tau > 0.5) {
-            printf("\n");
+            log << '\n';
+            log.flush();
             guess_dt(tau * 3);
+            log << "NPT...\n";
             init_tau = tau;
         }
         int num_iters = 16;
@@ -430,22 +450,18 @@ void SystemParticles::npt_berendsen(double press, double temp, double mean_beta)
             cur_press.update(get_pressure());
         }
         beta.update(cell_size, get_pressure());
-        //printf("  %.2f\t%.5f\t%.5f\n", beta * 1.0, cur_temp.error_mean(), cur_press.error_mean());
         print_info(0.0);
-        //fprintf(outfile, "%f\t%f\t%f\t%f\n", cur_temp.mean(), cur_temp.error_mean(), std::abs(temp - cur_temp.mean()) / cur_temp.error_mean(),
-        //std::abs(prev_temp - cur_temp.mean()) / cur_temp.error_mean());
     } while (std::abs(press - cur_press.mean()) > cur_press.error_mean()
              || std::abs(prev_press - cur_press.mean()) > cur_press.error_mean()
              || std::abs(temp - cur_temp.mean()) > cur_temp.error_mean()
              || std::abs(prev_temp - cur_temp.mean()) > cur_temp.error_mean()
             );
-    //fclose(outfile);
-    std::cout << "Calculation time " << print_info(-1) << "\n\n";
+    log << "Calculation time " << print_info(-1) << "\n\n";
 
 
 }
 
-//TODO::запись лог файла примерно как в lammps
+
 std::string SystemParticles::print_info(double frac_done) const {
     static TimeLeft timeLeft;
     static double init_energy = 0;
@@ -459,13 +475,20 @@ std::string SystemParticles::print_info(double frac_done) const {
     }
     if (init_energy == 0) init_energy = get_energy();
     if (print_info_iter == 0 || print_info_iter > 9) {
-        printf("%%   Left     E_dev      Temp     Press    Dens     Free_time\n");
+        log << "%   Left     E_dev       Temp     Press     Dens     Free_time\n";
+        log.flush();
         print_info_iter = 0;
     }
-    printf("%-4.0f%-9s%.1e    %.3f    %-9.3f%-9.3f%.3f\n", frac_done * 100, timeLeft(frac_done).c_str(),
-           get_energy() / init_energy - 1, get_temperature(), get_pressure(),
-           NUM_PARTICLES / pow(cell_size, 3), get_free_time());
-    //std::cout.flush();
+    log << std::left << std::setw(4) << std::fixed << std::setprecision(0) << frac_done * 100;
+    log << std::left << std::setw(9) << timeLeft(frac_done);
+    log << std::left << std::setw(12) << std::scientific << std::setprecision(1) << std::showpos
+        << get_energy() / init_energy - 1 << std::noshowpos;
+    log << std::left << std::setw(9) << std::fixed << std::setprecision(3) << get_temperature();
+    log << std::left << std::setw(10) << std::fixed << std::setprecision(3) << get_pressure();
+    log << std::left << std::setw(9) << std::fixed << std::setprecision(3) << NUM_PARTICLES / pow(cell_size, 3);
+    log << std::left << std::setw(9) << std::fixed << std::setprecision(3) << get_free_time();
+    log << '\n';
+    log.flush();
     print_info_iter++;
     return timeLeft.get_full_time();
 }
